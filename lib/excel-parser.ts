@@ -23,6 +23,7 @@ const DEPT_MAP: [string, string][] = [
   ['rrpp',      'RRPP'],
   ['consult',   'Consultoría'],
   ['estrat',    'Consultoría'],
+  ['fee',       'Fee'],
 ]
 
 function nfd(s: string) {
@@ -46,22 +47,26 @@ export const TIPOS_EXCL = new Set([
 
 /* ── Interfaz de fila ── */
 export interface DataRow {
-  fecha:              string | null
-  cliente:            string
+  fecha:               string | null
+  cliente:             string
   departamento_limpio: string
-  tipo:               string
-  ciudad:             string
-  total_venta_real:   number
-  costos:             number
-  margen:             number
-  rentabilidad_pct:   number
-  mes:                string
+  tipo:                string
+  ciudad:              string
+  total_venta_real:    number
+  costos:              number
+  margen:              number
+  rentabilidad_pct:    number
+  mes:                 string
 }
 
-/* ── Encuentra la fila de encabezado ── */
-const HEADER_KEYS = ['cliente','codigo','código','periodo','período','mes',
-                     'fecha','total','venta','costo','tipo','ciudad','departamento']
+/* ── Palabras clave de cabecera ── */
+const HEADER_KEYS = ['fecha','codigo','codigo','cliente','tipo','departamento',
+                     'ciudad','venta','base','costo','margen','rentab','total','ingreso']
 
+/* ── Hojas a ignorar ── */
+const SKIP_SHEETS = ['modelo','resumen','plantilla','template','summary','formato']
+
+/* ── Encuentra la fila de encabezado (max 25 rows) ── */
 function findHeaderRow(ws: XLSX.WorkSheet): number {
   const ref = ws['!ref']
   if (!ref) return 0
@@ -78,6 +83,12 @@ function findHeaderRow(ws: XLSX.WorkSheet): number {
     if (matches >= 2) return r
   }
   return 0
+}
+
+/* ── ¿Es una hoja de datos válida? ── */
+function isDataSheet(name: string): boolean {
+  const l = nfd(name)
+  return !SKIP_SHEETS.some(s => l.includes(s))
 }
 
 /* ── Busca el valor de una columna por palabras clave ── */
@@ -101,61 +112,23 @@ function colNum(row: Record<string, unknown>, ...keys: string[]): number {
   return 0
 }
 
-/* ── Parsea la hoja de proyecciones ── */
-export function parseProjections(wb: XLSX.WorkBook): Record<string, number> {
-  const name = wb.SheetNames.find(n => {
-    const l = nfd(n)
-    return ['proyecc','presup','meta','budget'].some(k => l.includes(k))
-  })
-  if (!name) return {}
-
-  const ws = wb.Sheets[name]
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 }) as unknown[][]
-
-  let clientCol = -1, projCol = -1, headerRow = -1
-
-  for (let r = 0; r < Math.min(rows.length, 20); r++) {
-    const row = rows[r] as unknown[]
-    let cm = 0, pm = 0
-    for (let c = 0; c < row.length; c++) {
-      const v = nfd(String(row[c] ?? ''))
-      if (v.includes('client') || v.includes('cuenta') || v.includes('empresa')) { clientCol = c; cm++ }
-      if (v.includes('proyec') || v.includes('presup') || v.includes('meta') || v.includes('budget')) { projCol = c; pm++ }
-    }
-    if (cm > 0 && pm > 0) { headerRow = r; break }
+/* ── Convierte un valor de fecha a ISO string ── */
+function toIso(val: unknown): string | null {
+  if (!val) return null
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? null : val.toISOString()
   }
-
-  if (headerRow < 0 || clientCol < 0 || projCol < 0) return {}
-
-  const result: Record<string, number> = {}
-  for (let r = headerRow + 1; r < rows.length; r++) {
-    const row = rows[r] as unknown[]
-    const client = String(row[clientCol] ?? '').trim()
-    const val = parseFloat(String(row[projCol] ?? '').replace(/[$,\s]/g, ''))
-    if (client && !isNaN(val) && val > 0) result[client] = val
-  }
-  return result
+  const s = String(val).trim()
+  if (!s) return null
+  try {
+    const d = new Date(s)
+    return isNaN(d.getTime()) ? null : d.toISOString()
+  } catch { return null }
 }
 
-/* ── Parsea el Excel completo ── */
-export function parseExcel(buffer: ArrayBuffer): {
-  rows: DataRow[]
-  projections: Record<string, number>
-  filename: string
-} {
-  const wb = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true })
-  const projections = parseProjections(wb)
-
-  // Hoja principal: primera que no sea de proyecciones
-  const skipKeys = ['proyecc','presup','meta','budget']
-  const mainName = wb.SheetNames.find(n => {
-    const l = nfd(n)
-    return !skipKeys.some(k => l.includes(k))
-  }) ?? wb.SheetNames[0]
-
-  const ws = wb.Sheets[mainName]
+/* ── Parsea una hoja de datos ── */
+function parseSheet(ws: XLSX.WorkSheet): DataRow[] {
   const headerRowIdx = findHeaderRow(ws)
-
   const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
     raw:    false,
     defval: '',
@@ -166,24 +139,31 @@ export function parseExcel(buffer: ArrayBuffer): {
 
   for (const raw of rawData) {
     const cliente = colVal(raw, 'cliente','cuenta','client','empresa','razon')
-    if (!cliente) continue
+    if (!cliente || cliente.toLowerCase().includes('total') || cliente.toLowerCase().includes('subtotal')) continue
 
-    const totalVenta = colNum(raw, 'total_venta','venta_real','venta','ingreso','revenue','facturado','total')
+    // Ventas: "Base Iva" | "total_venta" | "venta_real" | "venta" | "ingreso" | "base" | "facturado"
+    const totalVenta = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
+                               'ingreso','revenue','facturado','base','honorario')
     if (totalVenta === 0) continue
 
-    const costos  = colNum(raw, 'costo','cost','gasto','egreso')
+    const costos = colNum(raw, 'costo real','costo_real','costo','cost','gasto','egreso')
     const margen  = totalVenta - costos
-    const rentab  = totalVenta > 0 ? (margen / totalVenta) * 100 : 0
 
-    // Fecha
-    const fechaRaw = colVal(raw, 'fecha','date','periodo','period')
-    let fecha: string | null = null
-    if (fechaRaw) {
-      try { fecha = new Date(fechaRaw).toISOString() } catch { fecha = null }
+    // % Rentabilidad puede estar como 0-1 (decimal) o 0-100
+    let rentab = colNum(raw, '% rent','%rent','rentabilidad_pct','rentabilidad','margin','margen_pct')
+    if (rentab === 0 && totalVenta > 0) {
+      rentab = (margen / totalVenta) * 100
+    } else if (Math.abs(rentab) <= 1.0001 && rentab !== 0) {
+      // Es decimal (0-1 scale), convertir a porcentaje
+      rentab = rentab * 100
     }
 
+    // Fecha
+    const fechaVal = colVal(raw, 'fecha','date')
+    const fecha    = toIso(fechaVal)
+
     // Mes
-    let mes = colVal(raw, 'mes','month')
+    let mes = colVal(raw, 'mes','month','periodo')
     if (!mes && fecha) {
       try {
         mes = new Date(fecha).toLocaleString('es-EC', { month: 'long', year: 'numeric' })
@@ -208,5 +188,92 @@ export function parseExcel(buffer: ArrayBuffer): {
     })
   }
 
-  return { rows, projections, filename: mainName }
+  return rows
+}
+
+/* ── Parsea la hoja de proyecciones ── */
+export function parseProjections(wb: XLSX.WorkBook): Record<string, number> {
+  const name = wb.SheetNames.find(n => {
+    const l = nfd(n)
+    return ['proyecc','presup','meta','budget'].some(k => l.includes(k))
+  })
+  if (!name) return {}
+
+  const ws = wb.Sheets[name]
+  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 }) as unknown[][]
+
+  // Detectar columnas de cliente y proyección
+  let clientCol = -1, projCol = -1, headerRow = -1
+
+  for (let r = 0; r < Math.min(rawRows.length, 20); r++) {
+    const row = rawRows[r] as unknown[]
+    let cm = 0, pm = 0
+    for (let c = 0; c < row.length; c++) {
+      const v = nfd(String(row[c] ?? ''))
+      if (v.includes('client') || v.includes('cuenta') || v.includes('empresa')) { clientCol = c; cm++ }
+      if (v.includes('proyec') || v.includes('presup') || v.includes('meta') || v.includes('budget')) { projCol = c; pm++ }
+    }
+    if (cm > 0 && pm > 0) { headerRow = r; break }
+  }
+
+  // Si no encontró header, asumir primera columna=cliente, segunda=proyección
+  if (headerRow < 0 || clientCol < 0 || projCol < 0) {
+    // Detectar automáticamente: primera col texto, segunda col número
+    for (let r = 0; r < Math.min(rawRows.length, 5); r++) {
+      const row = rawRows[r] as unknown[]
+      if (row.length >= 2 && typeof row[0] === 'string' && !isNaN(parseFloat(String(row[1])))) {
+        clientCol = 0; projCol = 1; headerRow = r - 1; break
+      }
+    }
+    if (clientCol < 0) { clientCol = 0; projCol = 1; headerRow = 0 }
+  }
+
+  const result: Record<string, number> = {}
+  for (let r = headerRow + 1; r < rawRows.length; r++) {
+    const row = rawRows[r] as unknown[]
+    const client = String(row[clientCol] ?? '').trim()
+    const val    = parseFloat(String(row[projCol] ?? '').replace(/[$,\s]/g, ''))
+    if (client && !isNaN(val) && val > 0) {
+      // Usar como clave el cliente limpio (sin espacios múltiples)
+      const key = client.replace(/\s+/g, ' ').trim()
+      result[key] = (result[key] ?? 0) + val // sumar si hay duplicados
+    }
+  }
+  return result
+}
+
+/* ── Parsea el Excel completo ── */
+export function parseExcel(buffer: ArrayBuffer): {
+  rows:        DataRow[]
+  projections: Record<string, number>
+  filename:    string
+} {
+  const wb = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true })
+  const projections = parseProjections(wb)
+
+  const skipProjection = new Set(['proyecc','presup','meta','budget'])
+  const allRows: DataRow[] = []
+  let mainSheetName = wb.SheetNames[0]
+
+  for (const sheetName of wb.SheetNames) {
+    const l = nfd(sheetName)
+
+    // Saltar proyecciones, modelos y resúmenes
+    if (skipProjection.some(k => l.includes(k))) continue
+    if (!isDataSheet(sheetName)) continue
+
+    const ws     = wb.Sheets[sheetName]
+    const parsed = parseSheet(ws)
+
+    if (parsed.length > 0) {
+      allRows.push(...parsed)
+      if (allRows.length === parsed.length) mainSheetName = sheetName // primera hoja con datos
+    }
+  }
+
+  return {
+    rows:        allRows,
+    projections,
+    filename:    mainSheetName,
+  }
 }
