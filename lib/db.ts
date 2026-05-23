@@ -24,19 +24,25 @@ async function getPool() {
   if (!url) return null
   if (!_pool) {
     const { Pool } = await import('pg')
-    // Parsear URL manualmente para soportar IPv6 y evitar conflictos de SSL
-    // La URL puede tener formato: postgresql://user:pass@[ipv6]:port/db o postgresql://user:pass@host:port/db
+    // Parsear URL manualmente para soportar IPv6 con brackets y evitar conflictos SSL
+    // Formato: postgresql://user:pass@[ipv6]:port/db  o  postgresql://user:pass@host:port/db
     let poolConfig: import('pg').PoolConfig
-    try {
-      const parsed = new URL(url.replace('postgresql://', 'http://').replace('postgres://', 'http://'))
-      const hostname = parsed.hostname // Node URL ya extrae IPv6 sin brackets
-      const portStr = parsed.port || '5432'
-      const username = decodeURIComponent(parsed.username)
-      const password = decodeURIComponent(parsed.password)
-      const database = (parsed.pathname || '/postgres').slice(1) || 'postgres'
+
+    // Regex que captura IPv6 (con brackets) o hostname normal
+    const urlMatch = url.match(
+      /^(?:postgresql|postgres):\/\/([^:@]+):([^@]+)@(\[([^\]]+)\]|([^\/:]+)):?(\d+)?\/([^?]*)/
+    )
+    if (urlMatch) {
+      const username = decodeURIComponent(urlMatch[1])
+      const password = decodeURIComponent(urlMatch[2])
+      const ipv6Host = urlMatch[4]   // IPv6 sin brackets (si existe)
+      const plainHost = urlMatch[5]  // Host normal (si existe)
+      const host = ipv6Host || plainHost
+      const port  = parseInt(urlMatch[6] || '5432')
+      const database = urlMatch[7] || 'postgres'
       poolConfig = {
-        host: hostname,
-        port: parseInt(portStr),
+        host,
+        port,
         user: username,
         password,
         database,
@@ -44,10 +50,11 @@ async function getPool() {
         max: 3,
         idleTimeoutMillis: 30_000,
       }
-    } catch {
+    } else {
       // Fallback a connectionString si el parsing falla
+      const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, '')
       poolConfig = {
-        connectionString: url,
+        connectionString: cleanUrl,
         ssl: { rejectUnauthorized: false },
         max: 3,
         idleTimeoutMillis: 30_000,
