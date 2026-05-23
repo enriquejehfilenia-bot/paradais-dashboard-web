@@ -91,11 +91,18 @@ function isDataSheet(name: string): boolean {
   return !SKIP_SHEETS.some(s => l.includes(s))
 }
 
-/* ── Busca el valor de una columna por palabras clave ── */
+/* ── Busca el valor de una columna por palabras clave ──
+   Se usa startsWith para evitar falsos positivos cuando el término de búsqueda
+   aparece en medio de un nombre compuesto, e.g. 'ingreso' en 'Periodo Ingreso'.
+   También se acepta coincidencia exacta (kl === key). ── */
+function colMatch(kl: string, key: string): boolean {
+  return kl === key || kl.startsWith(key)
+}
+
 function colVal(row: Record<string, unknown>, ...keys: string[]): string {
   for (const k of Object.keys(row)) {
     const kl = nfd(k)
-    if (keys.some(key => kl.includes(key))) return String(row[k] ?? '').trim()
+    if (keys.some(key => colMatch(kl, key))) return String(row[k] ?? '').trim()
   }
   return ''
 }
@@ -103,7 +110,7 @@ function colVal(row: Record<string, unknown>, ...keys: string[]): string {
 function colNum(row: Record<string, unknown>, ...keys: string[]): number {
   for (const k of Object.keys(row)) {
     const kl = nfd(k)
-    if (keys.some(key => kl.includes(key))) {
+    if (keys.some(key => colMatch(kl, key))) {
       const v = String(row[k] ?? '').replace(/[$,\s]/g, '')
       const n = parseFloat(v)
       return isNaN(n) ? 0 : n
@@ -162,8 +169,8 @@ function parseSheet(ws: XLSX.WorkSheet): DataRow[] {
     const fechaVal = colVal(raw, 'fecha','date')
     const fecha    = toIso(fechaVal)
 
-    // Mes
-    let mes = colVal(raw, 'mes','month','periodo')
+    // Mes — "periodo" solo como clave exacta para evitar match con "Periodo Ingreso"
+    let mes = colVal(raw, 'mes','month','periodo mes','mes periodo')
     if (!mes && fecha) {
       try {
         mes = new Date(fecha).toLocaleString('es-EC', { month: 'long', year: 'numeric' })
