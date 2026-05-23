@@ -26,6 +26,26 @@ function findHeaderRow(ws: XLSX.WorkSheet): number {
   return 0
 }
 
+function colVal(row: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of Object.keys(row)) {
+    const kl = nfd(k)
+    if (keys.some(key => kl.includes(key))) return String(row[k] ?? '').trim()
+  }
+  return ''
+}
+
+function colNum(row: Record<string, unknown>, ...keys: string[]): number {
+  for (const k of Object.keys(row)) {
+    const kl = nfd(k)
+    if (keys.some(key => kl.includes(key))) {
+      const v = String(row[k] ?? '').replace(/[$,\s]/g, '')
+      const n = parseFloat(v)
+      return isNaN(n) ? 0 : n
+    }
+  }
+  return 0
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -33,50 +53,57 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
     const buffer = await file.arrayBuffer()
-    const magic  = new Uint8Array(buffer.slice(0, 4))
-    const magicHex = Array.from(magic).map(b => b.toString(16).padStart(2,'0')).join('')
 
     const wb = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true })
-    const sheetNames = wb.SheetNames
 
-    const sheetDiag: Record<string, unknown>[] = []
-    for (const name of sheetNames) {
-      const ws = wb.Sheets[name]
-      const ref = ws['!ref'] || 'none'
-      const headerRow = findHeaderRow(ws)
+    // Test on first data sheet (ENERO)
+    const firstSheet = wb.SheetNames[0]
+    const ws = wb.Sheets[firstSheet]
+    const headerRow = findHeaderRow(ws)
 
-      // Get raw first 3 rows
-      const raw3 = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' }) as unknown[][]
-      const first3 = raw3.slice(0, 4).map(row =>
-        (row as unknown[]).slice(0, 10).map(v => String(v).substring(0, 20))
-      )
+    const jsonRows = XLSX.utils.sheet_to_json<Record<string,unknown>>(ws, {
+      raw: false, defval: '', range: headerRow
+    })
 
-      // Try to get JSON with detected header row
-      const jsonRows = XLSX.utils.sheet_to_json<Record<string,unknown>>(ws, {
-        raw: false, defval: '', range: headerRow
-      })
+    // Trace first few rows
+    const trace: unknown[] = []
+    let validCount = 0
 
-      const keys = jsonRows.length > 0 ? Object.keys(jsonRows[0]).slice(0, 12) : []
-      const sampleRow = jsonRows.length > 0 ? jsonRows[0] : null
+    for (let i = 0; i < Math.min(jsonRows.length, 500); i++) {
+      const raw = jsonRows[i]
+      const cliente = colVal(raw, 'cliente','cuenta','client','empresa','razon')
+      const totalVenta = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
+                                'ingreso','revenue','facturado','base','honorario')
 
-      sheetDiag.push({
-        name,
-        ref,
-        headerRow,
-        totalJsonRows: jsonRows.length,
-        keys,
-        first3,
-        sampleRow,
-      })
+      if (i < 5) {
+        // Log what we see for first 5 rows
+        const allKeys = Object.keys(raw).slice(0, 12)
+        const keyMap: Record<string,string> = {}
+        for (const k of allKeys) keyMap[k] = String(raw[k]).substring(0,20)
+        trace.push({
+          i,
+          cliente,
+          totalVenta,
+          nfd_cliente_key: nfd('Cliente'),
+          nfd_baseiva_key: nfd(' Base Iva '),
+          keys_sample: allKeys,
+          raw_sample: keyMap,
+        })
+      }
+
+      if (cliente && !cliente.toLowerCase().includes('total') && totalVenta !== 0) {
+        validCount++
+      }
     }
 
     return NextResponse.json({
-      size: buffer.byteLength,
-      magic: magicHex,
-      sheetCount: sheetNames.length,
-      sheets: sheetDiag,
+      sheet: firstSheet,
+      headerRow,
+      totalJsonRows: jsonRows.length,
+      validRowsFound: validCount,
+      trace,
     })
   } catch (e: unknown) {
-    return NextResponse.json({ error: e instanceof Error ? `${e.message}\n${e.stack?.slice(0,600)}` : String(e) }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? `${e.message}\n${e.stack?.slice(0,800)}` : String(e) }, { status: 500 })
   }
 }
