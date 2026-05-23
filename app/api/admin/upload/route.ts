@@ -55,14 +55,22 @@ export async function POST(req: NextRequest) {
 
   const excel_b64 = Buffer.from(buffer).toString('base64')
 
-  await saveData({
-    records:     JSON.stringify(rows),
-    projections: JSON.stringify(projections),
-    excel_b64,
-    filename,
-    row_count:   rows.length,
-    updated_at:  new Date().toISOString(),
-  })
+  try {
+    await saveData({
+      records:     JSON.stringify(rows),
+      projections: JSON.stringify(projections),
+      excel_b64,
+      filename,
+      row_count:   rows.length,
+      updated_at:  new Date().toISOString(),
+    })
+  } catch (e) {
+    console.error('saveData error:', e)
+    return NextResponse.json({
+      error: 'Error al guardar en base de datos',
+      detail: e instanceof Error ? e.message : String(e),
+    }, { status: 500 })
+  }
 
   return NextResponse.json({ message: 'OK', row_count: rows.length, filename })
 }
