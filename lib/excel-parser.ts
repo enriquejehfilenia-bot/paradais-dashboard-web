@@ -156,9 +156,11 @@ function parseSheet(ws: XLSX.WorkSheet): DataRow[] {
     const costos = colNum(raw, 'costo real','costo_real','costo','cost','gasto','egreso')
     const margen  = totalVenta - costos
 
-    // % Rentabilidad puede estar como 0-1 (decimal) o 0-100
-    let rentab = colNum(raw, '% rent','%rent','rentabilidad_pct','rentabilidad','margin','margen_pct')
+    // % Rentabilidad: buscar SOLO columnas con "%" en el nombre para evitar
+    // confundir " Rentabilidad " (valor absoluto) con "% Rentabilidad" (porcentaje)
+    let rentab = colNum(raw, '% rent','%rent','rentabilidad_pct','margen_pct')
     if (rentab === 0 && totalVenta > 0) {
+      // Fallback: calcular desde margen
       rentab = (margen / totalVenta) * 100
     } else if (Math.abs(rentab) <= 1.0001 && rentab !== 0) {
       // Es decimal (0-1 scale), convertir a porcentaje
