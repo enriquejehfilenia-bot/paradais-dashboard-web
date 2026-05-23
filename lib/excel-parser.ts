@@ -260,24 +260,18 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
     const cliente = colVal(raw, 'cliente','cuenta','client','empresa','razon')
     if (!cliente || /^(total|subtotal|suma)/i.test(cliente.trim())) continue
 
-    // Ventas — "Base Iva" tiene prioridad por ser la columna exacta del Excel
-    const totalVenta = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
-                               'ingreso','revenue','facturado','honorario')
+    // Ventas = Base Iva + Comisión (ambas son ingresos del cliente)
+    const baseIva  = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
+                             'ingreso','revenue','facturado','honorario')
+    const comision = colNum(raw, 'comis','commission','comision','comission')
+    const totalVenta = baseIva + comision
     if (totalVenta === 0) continue
 
     const costos = colNum(raw, 'costo real','costo_real','costo','cost','gasto','egreso')
     const margen  = totalVenta - costos
 
-    // % Rentabilidad:
-    //   - Buscar SOLO columnas con "%" para no confundir con "Rentabilidad" (valor absoluto)
-    //   - Con raw:true los % de Excel llegan como 0.0–1.0 (decimal); multiplicar × 100
-    let rentab = colNum(raw, '% rent','%rent','rentabilidad_pct','margen_pct')
-    if (rentab === 0 && totalVenta > 0) {
-      rentab = (margen / totalVenta) * 100
-    } else if (Math.abs(rentab) <= 1.0001 && rentab !== 0) {
-      // Decimal scale (0–1) → convertir a porcentaje
-      rentab = rentab * 100
-    }
+    // % Rentabilidad: recalcular siempre sobre el total real (base + comisión)
+    const rentab = totalVenta > 0 ? (margen / totalVenta) * 100 : 0
 
     // Fecha — usar colRaw para obtener Date object nativo o serial numérico
     const fechaRaw = colRaw(raw, 'fecha','date')
