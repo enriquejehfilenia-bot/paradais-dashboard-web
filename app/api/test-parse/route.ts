@@ -76,16 +76,20 @@ export async function POST(req: NextRequest) {
                                 'ingreso','revenue','facturado','base','honorario')
 
       if (i < 5) {
-        // Log what we see for first 5 rows
-        const allKeys = Object.keys(raw).slice(0, 12)
+        // Log ALL key-value pairs for first 5 rows
+        const allKeys = Object.keys(raw)
         const keyMap: Record<string,string> = {}
-        for (const k of allKeys) keyMap[k] = String(raw[k]).substring(0,20)
+        for (const k of allKeys) keyMap[k] = String(raw[k]).substring(0,30)
+        // Also find Base Iva key directly
+        const baseIvaKey = allKeys.find(k => k.includes('Base') || k.includes('Iva') || k.includes('base') || k.includes('iva'))
+        const baseIvaVal = baseIvaKey ? raw[baseIvaKey] : 'KEY_NOT_FOUND'
+        // Also try raw with raw:true
         trace.push({
           i,
           cliente,
           totalVenta,
-          nfd_cliente_key: nfd('Cliente'),
-          nfd_baseiva_key: nfd(' Base Iva '),
+          baseIvaKey,
+          baseIvaVal: String(baseIvaVal).substring(0,30),
           keys_sample: allKeys,
           raw_sample: keyMap,
         })
