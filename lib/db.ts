@@ -1,13 +1,12 @@
 /**
  * Capa de almacenamiento:
- *  - Si SUPABASE_URL + SUPABASE_SERVICE_KEY están configuradas → Supabase Postgres
+ *  - Si DATABASE_URL está configurada → Supabase Postgres (via pg directo)
  *  - Si no → memoria RAM (se pierde al reiniciar, solo para pruebas)
  */
-import type { DataRow } from './excel-parser'
 
 export interface StoredData {
-  records:     string   // JSON
-  projections: string   // JSON
+  records:     string   // JSON array
+  projections: string   // JSON object
   excel_b64:   string
   filename:    string
   row_count:   number
@@ -17,38 +16,40 @@ export interface StoredData {
 /* ── In-memory fallback ── */
 let memStore: StoredData | null = null
 
-/* ── Supabase client (lazy) ── */
-async function getSupabase() {
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_KEY
-  if (!url || !key) return null
-  const { createClient } = await import('@supabase/supabase-js')
-  return createClient(url, key, { auth: { persistSession: false } })
-}
+/* ── Pool PostgreSQL lazy ── */
+let _pool: import('pg').Pool | null = null
 
-/* ── Inicializar tabla si no existe ── */
-export async function initDB() {
-  const sb = await getSupabase()
-  if (!sb) return
-  // Supabase no tiene CREATE TABLE via JS, la tabla se crea manualmente.
-  // Solo insertamos la fila de control si no existe.
-  const { error } = await sb
-    .from('dashboard_data')
-    .upsert({ id: 1 }, { onConflict: 'id', ignoreDuplicates: true })
-  if (error && !error.message.includes('does not exist')) {
-    console.error('initDB:', error.message)
+async function getPool() {
+  const url = process.env.DATABASE_URL
+  if (!url) return null
+  if (!_pool) {
+    const { Pool } = await import('pg')
+    _pool = new Pool({
+      connectionString: url,
+      ssl: { rejectUnauthorized: false },
+      max: 3,
+      idleTimeoutMillis: 30_000,
+    })
   }
+  return _pool
 }
 
 /* ── Guardar datos ── */
 export async function saveData(data: StoredData) {
-  const sb = await getSupabase()
-  if (sb) {
-    const { error } = await sb.from('dashboard_data').upsert(
-      { id: 1, ...data, updated_at: new Date().toISOString() },
-      { onConflict: 'id' }
-    )
-    if (error) throw new Error(error.message)
+  const pool = await getPool()
+  if (pool) {
+    const client = await pool.connect()
+    try {
+      await client.query(
+        `UPDATE dashboard_data SET
+           records=$1, projections=$2, excel_b64=$3,
+           filename=$4, row_count=$5, updated_at=now()
+         WHERE id=1`,
+        [data.records, data.projections, data.excel_b64, data.filename, data.row_count]
+      )
+    } finally {
+      client.release()
+    }
   } else {
     memStore = { ...data, updated_at: new Date().toISOString() }
   }
@@ -56,15 +57,17 @@ export async function saveData(data: StoredData) {
 
 /* ── Recuperar datos ── */
 export async function getData(): Promise<StoredData | null> {
-  const sb = await getSupabase()
-  if (sb) {
-    const { data, error } = await sb
-      .from('dashboard_data')
-      .select('*')
-      .eq('id', 1)
-      .single()
-    if (error) return null
-    return data as StoredData
+  const pool = await getPool()
+  if (pool) {
+    const client = await pool.connect()
+    try {
+      const res = await client.query(
+        'SELECT records, projections, excel_b64, filename, row_count, updated_at FROM dashboard_data WHERE id=1'
+      )
+      return res.rows[0] ?? null
+    } finally {
+      client.release()
+    }
   }
   return memStore
 }
