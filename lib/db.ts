@@ -24,8 +24,11 @@ async function getPool() {
   if (!url) return null
   if (!_pool) {
     const { Pool } = await import('pg')
+    // Parsear URL para evitar conflictos entre ssl en URL y ssl en config
+    // Supabase pooler requiere SSL pero con rejectUnauthorized: false
+    const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, '')
     _pool = new Pool({
-      connectionString: url,
+      connectionString: cleanUrl,
       ssl: { rejectUnauthorized: false },
       max: 3,
       idleTimeoutMillis: 30_000,
