@@ -41,28 +41,54 @@ function normalizeDept(raw: string): string {
 
 /* ── Normaliza ciudad ── */
 const CIUDAD_MAP: [string, string][] = [
-  ['quito',      'Quito'],
-  ['guayaquil',  'Guayaquil'],
-  ['gye',        'Guayaquil'],
-  ['cuenca',     'Cuenca'],
-  ['ambato',     'Ambato'],
-  ['manta',      'Manta'],
-  ['loja',       'Loja'],
-  ['machala',    'Machala'],
-  ['esmeraldas', 'Esmeraldas'],
+  ['quito',        'Quito'],
+  ['guayaquil',    'Guayaquil'],
+  ['gye',          'Guayaquil'],
+  ['cuenca',       'Cuenca'],
+  ['ambato',       'Ambato'],
+  ['manta',        'Manta'],
+  ['loja',         'Loja'],
+  ['machala',      'Machala'],
+  ['esmeraldas',   'Esmeraldas'],
   ['santo domingo','Santo Domingo'],
 ]
 
 function normalizeCiudad(raw: string): string {
   if (!raw) return ''
   const l = raw.trim()
-  // Filtrar valores nulos / errores de Excel
   if (/^(n\/a|#n\/a|na|null|none|-)$/i.test(l)) return ''
   const ll = nfd(l)
   for (const [k, v] of CIUDAD_MAP) {
     if (ll === k || ll.startsWith(k)) return v
   }
-  return l  // Devolver tal cual si no hay match
+  return l
+}
+
+/* ── Mapa nombre de hoja → mes (para fallback cuando Fecha está vacía) ── */
+const SHEET_MES: Record<string, number> = {
+  enero:1, ene:1, jan:1, january:1,
+  febrero:2, feb:2, february:2,
+  marzo:3, mar:3, march:3,
+  abril:4, abr:4, april:4,
+  mayo:5, may:5,
+  junio:6, jun:6, june:6,
+  julio:7, jul:7, july:7,
+  agosto:8, ago:8, august:8,
+  septiembre:9, sep:9, sept:9, september:9,
+  octubre:10, oct:10, october:10,
+  noviembre:11, nov:11, november:11,
+  diciembre:12, dic:12, december:12,
+}
+
+function sheetFallbackMes(sheetName: string, year = 2026): string {
+  const l = nfd(sheetName)
+  for (const [k, m] of Object.entries(SHEET_MES)) {
+    if (l.startsWith(k) || l.includes(k)) {
+      const d = new Date(year, m - 1, 1)
+      return d.toLocaleString('es-EC', { month: 'long', year: 'numeric' })
+    }
+  }
+  return ''
 }
 
 /* ── Tipos excluidos del ranking privado ── */
@@ -86,11 +112,11 @@ export interface DataRow {
 }
 
 /* ── Palabras clave de cabecera ── */
-const HEADER_KEYS = ['fecha','codigo','codigo','cliente','tipo','departamento',
+const HEADER_KEYS = ['fecha','codigo','cliente','tipo','departamento',
                      'ciudad','venta','base','costo','margen','rentab','total','ingreso']
 
 /* ── Hojas a ignorar ── */
-const SKIP_SHEETS = ['modelo','resumen','plantilla','template','summary','formato']
+const SKIP_SHEETS = ['modelo','resumen','plantilla','template','summary','formato','concili']
 
 /* ── Encuentra la fila de encabezado (max 25 rows) ── */
 function findHeaderRow(ws: XLSX.WorkSheet): number {
@@ -117,27 +143,42 @@ function isDataSheet(name: string): boolean {
   return !SKIP_SHEETS.some(s => l.includes(s))
 }
 
-/* ── Busca el valor de una columna por palabras clave ──
-   Se usa startsWith para evitar falsos positivos cuando el término de búsqueda
-   aparece en medio de un nombre compuesto, e.g. 'ingreso' en 'Periodo Ingreso'.
-   También se acepta coincidencia exacta (kl === key). ── */
+/* ── colMatch: usa startsWith para evitar falsos positivos ── */
 function colMatch(kl: string, key: string): boolean {
   return kl === key || kl.startsWith(key)
 }
 
+/* ── Retorna el valor string de una columna ── */
 function colVal(row: Record<string, unknown>, ...keys: string[]): string {
   for (const k of Object.keys(row)) {
     const kl = nfd(k)
-    if (keys.some(key => colMatch(kl, key))) return String(row[k] ?? '').trim()
+    if (keys.some(key => colMatch(kl, key))) {
+      const v = row[k]
+      if (v instanceof Date) return v.toISOString()
+      return String(v ?? '').trim()
+    }
   }
   return ''
 }
 
+/* ── Retorna el valor RAW de una columna (para fechas: Date object) ── */
+function colRaw(row: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of Object.keys(row)) {
+    const kl = nfd(k)
+    if (keys.some(key => colMatch(kl, key))) return row[k]
+  }
+  return null
+}
+
+/* ── Retorna el valor numérico de una columna ── */
 function colNum(row: Record<string, unknown>, ...keys: string[]): number {
   for (const k of Object.keys(row)) {
     const kl = nfd(k)
     if (keys.some(key => colMatch(kl, key))) {
-      const v = String(row[k] ?? '').replace(/[$,\s]/g, '')
+      const raw = row[k]
+      // Con raw:true los números ya llegan como number
+      if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
+      const v = String(raw ?? '').replace(/[$,\s]/g, '')
       const n = parseFloat(v)
       return isNaN(n) ? 0 : n
     }
@@ -148,6 +189,7 @@ function colNum(row: Record<string, unknown>, ...keys: string[]): number {
 /* ── Convierte un valor de fecha a ISO string ── */
 function toIso(val: unknown): string | null {
   if (!val) return null
+  // Con raw:true SheetJS entrega Date objects nativos — son correctos
   if (val instanceof Date) {
     return isNaN(val.getTime()) ? null : val.toISOString()
   }
@@ -160,66 +202,74 @@ function toIso(val: unknown): string | null {
 }
 
 /* ── Parsea una hoja de datos ── */
-function parseSheet(ws: XLSX.WorkSheet): DataRow[] {
+function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
   const headerRowIdx = findHeaderRow(ws)
+  // raw:true — los Date cells llegan como Date objects (correctos),
+  // los números como number, los strings como string.
+  // Esto evita que "05/01/26" (DD/MM/YY) se parsee mal como May 1.
   const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    raw:    false,
+    raw:    true,
     defval: '',
     range:  headerRowIdx,
   })
+
+  // Mes de fallback desde nombre de hoja (para filas sin fecha)
+  const fallbackMes = sheetFallbackMes(sheetName)
 
   const rows: DataRow[] = []
 
   for (const raw of rawData) {
     const cliente = colVal(raw, 'cliente','cuenta','client','empresa','razon')
-    if (!cliente || cliente.toLowerCase().includes('total') || cliente.toLowerCase().includes('subtotal')) continue
+    if (!cliente || /^(total|subtotal|suma)/i.test(cliente.trim())) continue
 
-    // Ventas: "Base Iva" | "total_venta" | "venta_real" | "venta" | "ingreso" | "base" | "facturado"
+    // Ventas — "Base Iva" tiene prioridad por ser la columna exacta del Excel
     const totalVenta = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
-                               'ingreso','revenue','facturado','base','honorario')
+                               'ingreso','revenue','facturado','honorario')
     if (totalVenta === 0) continue
 
     const costos = colNum(raw, 'costo real','costo_real','costo','cost','gasto','egreso')
     const margen  = totalVenta - costos
 
-    // % Rentabilidad: buscar SOLO columnas con "%" en el nombre para evitar
-    // confundir " Rentabilidad " (valor absoluto) con "% Rentabilidad" (porcentaje)
+    // % Rentabilidad:
+    //   - Buscar SOLO columnas con "%" para no confundir con "Rentabilidad" (valor absoluto)
+    //   - Con raw:true los % de Excel llegan como 0.0–1.0 (decimal); multiplicar × 100
     let rentab = colNum(raw, '% rent','%rent','rentabilidad_pct','margen_pct')
     if (rentab === 0 && totalVenta > 0) {
-      // Fallback: calcular desde margen
       rentab = (margen / totalVenta) * 100
     } else if (Math.abs(rentab) <= 1.0001 && rentab !== 0) {
-      // Es decimal (0-1 scale), convertir a porcentaje
+      // Decimal scale (0–1) → convertir a porcentaje
       rentab = rentab * 100
     }
 
-    // Fecha
-    const fechaVal = colVal(raw, 'fecha','date')
-    const fecha    = toIso(fechaVal)
+    // Fecha — usar colRaw para obtener el Date object nativo de SheetJS
+    const fechaRaw = colRaw(raw, 'fecha','date')
+    const fecha    = toIso(fechaRaw)
 
-    // Mes — "periodo" solo como clave exacta para evitar match con "Periodo Ingreso"
-    let mes = colVal(raw, 'mes','month','periodo mes','mes periodo')
-    if (!mes && fecha) {
+    // Mes — derivar de fecha; si fecha es null usar el nombre de la hoja
+    let mes = ''
+    if (fecha) {
       try {
         mes = new Date(fecha).toLocaleString('es-EC', { month: 'long', year: 'numeric' })
-      } catch { mes = '' }
+      } catch { mes = fallbackMes }
+    } else {
+      mes = fallbackMes
     }
 
-    const deptRaw = colVal(raw, 'departamento','depto','dept','area','servicio','linea')
-    const tipo    = colVal(raw, 'tipo','type','categoria','category').toUpperCase()
+    const deptRaw   = colVal(raw, 'departamento','depto','dept','area','servicio','linea')
+    const tipo      = colVal(raw, 'tipo','type','categoria','category').toUpperCase()
     const ciudadRaw = colVal(raw, 'ciudad','city','ubicacion','location','provincia','region','localidad')
-    const ciudad  = normalizeCiudad(ciudadRaw)
+    const ciudad    = normalizeCiudad(ciudadRaw)
 
     rows.push({
       fecha,
-      cliente,
+      cliente:             cliente.replace(/\s+/g, ' ').trim(),
       departamento_limpio: normalizeDept(deptRaw),
       tipo,
       ciudad,
       total_venta_real: totalVenta,
       costos,
       margen,
-      rentabilidad_pct: rentab,
+      rentabilidad_pct: Math.round(rentab * 100) / 100,
       mes,
     })
   }
@@ -238,7 +288,6 @@ export function parseProjections(wb: XLSX.WorkBook): Record<string, number> {
   const ws = wb.Sheets[name]
   const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 }) as unknown[][]
 
-  // Detectar columnas de cliente y proyección
   let clientCol = -1, projCol = -1, headerRow = -1
 
   for (let r = 0; r < Math.min(rawRows.length, 20); r++) {
@@ -252,9 +301,7 @@ export function parseProjections(wb: XLSX.WorkBook): Record<string, number> {
     if (cm > 0 && pm > 0) { headerRow = r; break }
   }
 
-  // Si no encontró header, asumir primera columna=cliente, segunda=proyección
   if (headerRow < 0 || clientCol < 0 || projCol < 0) {
-    // Detectar automáticamente: primera col texto, segunda col número
     for (let r = 0; r < Math.min(rawRows.length, 5); r++) {
       const row = rawRows[r] as unknown[]
       if (row.length >= 2 && typeof row[0] === 'string' && !isNaN(parseFloat(String(row[1])))) {
@@ -267,12 +314,12 @@ export function parseProjections(wb: XLSX.WorkBook): Record<string, number> {
   const result: Record<string, number> = {}
   for (let r = headerRow + 1; r < rawRows.length; r++) {
     const row = rawRows[r] as unknown[]
-    const client = String(row[clientCol] ?? '').trim()
-    const val    = parseFloat(String(row[projCol] ?? '').replace(/[$,\s]/g, ''))
+    const client = String(row[clientCol] ?? '').replace(/\s+/g, ' ').trim()
+    const val    = typeof row[projCol] === 'number'
+      ? row[projCol] as number
+      : parseFloat(String(row[projCol] ?? '').replace(/[$,\s]/g, ''))
     if (client && !isNaN(val) && val > 0) {
-      // Usar como clave el cliente limpio (sin espacios múltiples)
-      const key = client.replace(/\s+/g, ' ').trim()
-      result[key] = (result[key] ?? 0) + val // sumar si hay duplicados
+      result[client] = (result[client] ?? 0) + val
     }
   }
   return result
@@ -294,16 +341,15 @@ export function parseExcel(buffer: ArrayBuffer): {
   for (const sheetName of wb.SheetNames) {
     const l = nfd(sheetName)
 
-    // Saltar proyecciones, modelos y resúmenes
     if (skipProjection.some(k => l.includes(k))) continue
     if (!isDataSheet(sheetName)) continue
 
     const ws     = wb.Sheets[sheetName]
-    const parsed = parseSheet(ws)
+    const parsed = parseSheet(ws, sheetName)
 
     if (parsed.length > 0) {
       allRows.push(...parsed)
-      if (allRows.length === parsed.length) mainSheetName = sheetName // primera hoja con datos
+      if (allRows.length === parsed.length) mainSheetName = sheetName
     }
   }
 
