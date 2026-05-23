@@ -178,7 +178,7 @@ export default function Dashboard({ data, projections, onLogout, onDownload, isA
                       <td className="px-2 py-1.5 max-w-[160px] truncate">{String(row.cliente ?? '')}</td>
                       <td className="px-2 py-1.5">{String(row.departamento_limpio ?? '')}</td>
                       <td className="px-2 py-1.5">{String(row.tipo ?? '')}</td>
-                      <td className="px-2 py-1.5">{String(row.ciudad ?? '')}</td>
+                      <td className="px-2 py-1.5">{String(row.ciudad ?? '') || '—'}</td>
                       <td className="px-2 py-1.5 text-right">{fm(Number(row.total_venta_real ?? 0))}</td>
                       <td className="px-2 py-1.5 text-right">{fm(Number(row.costos          ?? 0))}</td>
                       <td className="px-2 py-1.5 text-right">{fm(Number(row.margen          ?? 0))}</td>

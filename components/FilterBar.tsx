@@ -19,7 +19,9 @@ interface Props {
 }
 
 function unique(data: Record<string, unknown>[], key: string): string[] {
-  const vals = data.map(r => String(r[key] ?? '')).filter(v => v && v !== 'nan')
+  const vals = data
+    .map(r => String(r[key] ?? '').trim())
+    .filter(v => v && v !== 'nan' && !/^(n\/a|#n\/a|na|null|none|-)$/i.test(v))
   return Array.from(new Set(vals)).sort()
 }
 

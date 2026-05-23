@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/jwt'
 import { getData } from '@/lib/db'
+import * as XLSX from 'xlsx'
+import type { DataRow } from '@/lib/excel-parser'
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('authorization')
@@ -19,15 +21,51 @@ export async function GET(req: NextRequest) {
   }
 
   const row = await getData()
-  if (!row?.excel_b64) {
-    return NextResponse.json({ error: 'No data available' }, { status: 404 })
+  if (!row?.records) {
+    return NextResponse.json({ error: 'No hay datos disponibles' }, { status: 404 })
   }
 
-  const buf = Buffer.from(row.excel_b64, 'base64')
+  // Regenerar Excel limpio desde los records parseados
+  const records: DataRow[] = JSON.parse(row.records)
+
+  const sheetData = records.map(r => ({
+    'Fecha':          r.fecha ? new Date(r.fecha).toLocaleDateString('es-EC') : '',
+    'Cliente':        r.cliente,
+    'Departamento':   r.departamento_limpio,
+    'Tipo':           r.tipo,
+    'Ciudad':         r.ciudad,
+    'Venta Real':     r.total_venta_real,
+    'Costos':         r.costos,
+    'Margen':         r.margen,
+    '% Rentabilidad': parseFloat(r.rentabilidad_pct.toFixed(2)),
+    'Mes':            r.mes,
+  }))
+
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(sheetData)
+
+  // Ancho de columnas
+  ws['!cols'] = [
+    { wch: 12 }, // Fecha
+    { wch: 35 }, // Cliente
+    { wch: 18 }, // Departamento
+    { wch: 12 }, // Tipo
+    { wch: 14 }, // Ciudad
+    { wch: 14 }, // Venta Real
+    { wch: 12 }, // Costos
+    { wch: 12 }, // Margen
+    { wch: 14 }, // % Rentabilidad
+    { wch: 18 }, // Mes
+  ]
+
+  XLSX.utils.book_append_sheet(wb, ws, row.filename || 'DATA')
+
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
   return new NextResponse(buf, {
     headers: {
       'Content-Type':        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="DATA_${row.filename ?? 'export'}.xlsx"`,
+      'Content-Disposition': `attachment; filename="DATA_LIMPIA_${row.filename ?? 'export'}.xlsx"`,
     },
   })
 }

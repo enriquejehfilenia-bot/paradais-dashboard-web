@@ -39,6 +39,32 @@ function normalizeDept(raw: string): string {
   return raw.trim() || 'Otros'
 }
 
+/* ── Normaliza ciudad ── */
+const CIUDAD_MAP: [string, string][] = [
+  ['quito',      'Quito'],
+  ['guayaquil',  'Guayaquil'],
+  ['gye',        'Guayaquil'],
+  ['cuenca',     'Cuenca'],
+  ['ambato',     'Ambato'],
+  ['manta',      'Manta'],
+  ['loja',       'Loja'],
+  ['machala',    'Machala'],
+  ['esmeraldas', 'Esmeraldas'],
+  ['santo domingo','Santo Domingo'],
+]
+
+function normalizeCiudad(raw: string): string {
+  if (!raw) return ''
+  const l = raw.trim()
+  // Filtrar valores nulos / errores de Excel
+  if (/^(n\/a|#n\/a|na|null|none|-)$/i.test(l)) return ''
+  const ll = nfd(l)
+  for (const [k, v] of CIUDAD_MAP) {
+    if (ll === k || ll.startsWith(k)) return v
+  }
+  return l  // Devolver tal cual si no hay match
+}
+
 /* ── Tipos excluidos del ranking privado ── */
 export const TIPOS_EXCL = new Set([
   'PÚBLICO','PUBLICO','RELACIONADO','RELACIONADOS',
@@ -181,7 +207,8 @@ function parseSheet(ws: XLSX.WorkSheet): DataRow[] {
 
     const deptRaw = colVal(raw, 'departamento','depto','dept','area','servicio','linea')
     const tipo    = colVal(raw, 'tipo','type','categoria','category').toUpperCase()
-    const ciudad  = colVal(raw, 'ciudad','city','ubicacion','location')
+    const ciudadRaw = colVal(raw, 'ciudad','city','ubicacion','location','provincia','region','localidad')
+    const ciudad  = normalizeCiudad(ciudadRaw)
 
     rows.push({
       fecha,
