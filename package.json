@@ -15,8 +15,7 @@
     "recharts": "^2.12.7",
     "axios": "^1.7.2",
     "js-cookie": "^3.0.5",
-    "@next-pwa/core": "^0.1.0",
-    "next-pwa": "^5.6.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "date-fns": "^3.6.0"
   },
   "devDependencies": {
