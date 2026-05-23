@@ -1,18 +1,15 @@
 import axios, { AxiosProgressEvent } from 'axios'
 import { getToken, clearAuth } from './auth'
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// En producción, los endpoints son relativos (misma app Vercel)
+const api = axios.create({ baseURL: '' })
 
-const api = axios.create({ baseURL: BASE })
-
-// Adjuntar token en cada request
 api.interceptors.request.use((config) => {
   const token = getToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// Si el servidor responde 401, limpiar sesión
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -39,7 +36,7 @@ export interface LoginResponse {
 }
 
 export async function login(password: string): Promise<LoginResponse> {
-  const res = await api.post<LoginResponse>('/auth/login', { password })
+  const res = await api.post<LoginResponse>('/api/auth/login', { password })
   return res.data
 }
 
@@ -54,7 +51,7 @@ export async function uploadFile(
 ): Promise<{ message: string; row_count: number; filename: string }> {
   const form = new FormData()
   form.append('file', file)
-  const res = await api.post('/admin/upload', form, {
+  const res = await api.post('/api/admin/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (e: AxiosProgressEvent) => {
       if (onProgress && e.total) {
