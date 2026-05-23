@@ -112,7 +112,7 @@ export async function saveData(data: StoredData) {
         body: JSON.stringify({
           key:    ENV_KEY,
           value:  b64,
-          type:   'encrypted',
+          type:   'plain',    // 'plain' permite leer el valor via API (no son credenciales sensibles)
           target: ['production', 'preview', 'development'],
         }),
       }
