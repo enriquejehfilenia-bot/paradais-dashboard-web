@@ -67,7 +67,5 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ message: 'OK', row_count: rows.length, filename })
 }
 
-// Vercel: aumentar límite de body para uploads
-export const config = {
-  api: { bodyParser: false },
-}
+// Vercel: tiempo máximo para uploads grandes
+export const maxDuration = 60
