@@ -161,7 +161,7 @@ function colVal(row: Record<string, unknown>, ...keys: string[]): string {
   return ''
 }
 
-/* ── Retorna el valor RAW de una columna (para fechas: Date object) ── */
+/* ── Retorna el valor RAW de una columna ── */
 function colRaw(row: Record<string, unknown>, ...keys: string[]): unknown {
   for (const k of Object.keys(row)) {
     const kl = nfd(k)
@@ -176,7 +176,6 @@ function colNum(row: Record<string, unknown>, ...keys: string[]): number {
     const kl = nfd(k)
     if (keys.some(key => colMatch(kl, key))) {
       const raw = row[k]
-      // Con raw:true los números ya llegan como number
       if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
       const v = String(raw ?? '').replace(/[$,\s]/g, '')
       const n = parseFloat(v)
@@ -186,15 +185,55 @@ function colNum(row: Record<string, unknown>, ...keys: string[]): number {
   return 0
 }
 
-/* ── Convierte un valor de fecha a ISO string ── */
+/* ── Convierte un valor de fecha a ISO string ──
+   Maneja 3 casos en orden de prioridad:
+   1. Date object nativo (de cellDates:true + raw:true) → directo
+   2. Número Excel serial → convierte via XLSX.SSF
+   3. String → intenta DD/MM/YY primero (formato Ecuador), luego ISO
+── */
 function toIso(val: unknown): string | null {
-  if (!val) return null
-  // Con raw:true SheetJS entrega Date objects nativos — son correctos
+  if (val === null || val === undefined || val === '') return null
+
+  // Caso 1: Date object nativo de SheetJS
   if (val instanceof Date) {
     return isNaN(val.getTime()) ? null : val.toISOString()
   }
+
+  // Caso 2: número = serial de Excel
+  if (typeof val === 'number') {
+    try {
+      const parsed = XLSX.SSF.parse_date_code(val)
+      if (parsed && parsed.y > 1900) {
+        const d = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d))
+        return isNaN(d.getTime()) ? null : d.toISOString()
+      }
+    } catch { /* continuar */ }
+    return null
+  }
+
   const s = String(val).trim()
   if (!s) return null
+
+  // Caso 3a: DD/MM/YY o DD/MM/YYYY (formato Ecuador)
+  const ddmm = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/)
+  if (ddmm) {
+    const dd = parseInt(ddmm[1]), mm = parseInt(ddmm[2])
+    let yy = parseInt(ddmm[3])
+    if (yy < 100) yy += 2000
+    // Si DD > 12 definitivamente es DD/MM/YY
+    // Si DD <= 12 puede ser ambiguo — asumir DD/MM/YY (Ecuador)
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+      const d = new Date(Date.UTC(yy, mm - 1, dd))
+      if (!isNaN(d.getTime())) return d.toISOString()
+    }
+    // Si falla DD/MM, intentar MM/DD como fallback
+    if (dd >= 1 && dd <= 12 && mm >= 1 && mm <= 31) {
+      const d = new Date(Date.UTC(yy, dd - 1, mm))
+      if (!isNaN(d.getTime())) return d.toISOString()
+    }
+  }
+
+  // Caso 3b: intentar parseo genérico (ISO, etc.)
   try {
     const d = new Date(s)
     return isNaN(d.getTime()) ? null : d.toISOString()
@@ -204,17 +243,16 @@ function toIso(val: unknown): string | null {
 /* ── Parsea una hoja de datos ── */
 function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
   const headerRowIdx = findHeaderRow(ws)
-  // raw:true — los Date cells llegan como Date objects (correctos),
-  // los números como number, los strings como string.
-  // Esto evita que "05/01/26" (DD/MM/YY) se parsee mal como May 1.
+  // raw:true → fechas como Date objects nativos, números como number
   const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
     raw:    true,
     defval: '',
     range:  headerRowIdx,
   })
 
-  // Mes de fallback desde nombre de hoja (para filas sin fecha)
-  const fallbackMes = sheetFallbackMes(sheetName)
+  // El mes SIEMPRE se deriva del nombre de la hoja si esta lo indica.
+  // Es la fuente más confiable: "ENERO" = enero 2026, etc.
+  const sheetMes = sheetFallbackMes(sheetName)
 
   const rows: DataRow[] = []
 
@@ -241,18 +279,20 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
       rentab = rentab * 100
     }
 
-    // Fecha — usar colRaw para obtener el Date object nativo de SheetJS
+    // Fecha — usar colRaw para obtener Date object nativo o serial numérico
     const fechaRaw = colRaw(raw, 'fecha','date')
     const fecha    = toIso(fechaRaw)
 
-    // Mes — derivar de fecha; si fecha es null usar el nombre de la hoja
-    let mes = ''
-    if (fecha) {
+    // Mes — prioridad: nombre de hoja (más confiable) → fecha → vacío
+    let mes: string
+    if (sheetMes) {
+      mes = sheetMes  // ENERO→"enero de 2026", FEBRERO→"febrero de 2026", etc.
+    } else if (fecha) {
       try {
         mes = new Date(fecha).toLocaleString('es-EC', { month: 'long', year: 'numeric' })
-      } catch { mes = fallbackMes }
+      } catch { mes = '' }
     } else {
-      mes = fallbackMes
+      mes = ''
     }
 
     const deptRaw   = colVal(raw, 'departamento','depto','dept','area','servicio','linea')
