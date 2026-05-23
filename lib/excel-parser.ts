@@ -251,7 +251,7 @@ export function parseExcel(buffer: ArrayBuffer): {
   const wb = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true })
   const projections = parseProjections(wb)
 
-  const skipProjection = new Set(['proyecc','presup','meta','budget'])
+  const skipProjection = ['proyecc','presup','meta','budget']
   const allRows: DataRow[] = []
   let mainSheetName = wb.SheetNames[0]
 
