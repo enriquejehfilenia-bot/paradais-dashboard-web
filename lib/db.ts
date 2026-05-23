@@ -24,15 +24,36 @@ async function getPool() {
   if (!url) return null
   if (!_pool) {
     const { Pool } = await import('pg')
-    // Parsear URL para evitar conflictos entre ssl en URL y ssl en config
-    // Supabase pooler requiere SSL pero con rejectUnauthorized: false
-    const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, '')
-    _pool = new Pool({
-      connectionString: cleanUrl,
-      ssl: { rejectUnauthorized: false },
-      max: 3,
-      idleTimeoutMillis: 30_000,
-    })
+    // Parsear URL manualmente para soportar IPv6 y evitar conflictos de SSL
+    // La URL puede tener formato: postgresql://user:pass@[ipv6]:port/db o postgresql://user:pass@host:port/db
+    let poolConfig: import('pg').PoolConfig
+    try {
+      const parsed = new URL(url.replace('postgresql://', 'http://').replace('postgres://', 'http://'))
+      const hostname = parsed.hostname // Node URL ya extrae IPv6 sin brackets
+      const portStr = parsed.port || '5432'
+      const username = decodeURIComponent(parsed.username)
+      const password = decodeURIComponent(parsed.password)
+      const database = (parsed.pathname || '/postgres').slice(1) || 'postgres'
+      poolConfig = {
+        host: hostname,
+        port: parseInt(portStr),
+        user: username,
+        password,
+        database,
+        ssl: { rejectUnauthorized: false },
+        max: 3,
+        idleTimeoutMillis: 30_000,
+      }
+    } catch {
+      // Fallback a connectionString si el parsing falla
+      poolConfig = {
+        connectionString: url,
+        ssl: { rejectUnauthorized: false },
+        max: 3,
+        idleTimeoutMillis: 30_000,
+      }
+    }
+    _pool = new Pool(poolConfig)
   }
   return _pool
 }
