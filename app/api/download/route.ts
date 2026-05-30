@@ -25,37 +25,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No hay datos disponibles' }, { status: 404 })
   }
 
-  // Regenerar Excel limpio desde los records parseados
   const records: DataRow[] = JSON.parse(row.records)
 
   const sheetData = records.map(r => ({
     'Fecha':          r.fecha ? new Date(r.fecha).toLocaleDateString('es-EC') : '',
     'Cliente':        r.cliente,
+    'Empresa':        r.empresa ?? '',
     'Departamento':   r.departamento_limpio,
     'Tipo':           r.tipo,
     'Ciudad':         r.ciudad,
+    'Mes':            r.mes,
     'Venta Real':     r.total_venta_real,
     'Costos':         r.costos,
     'Margen':         r.margen,
     '% Rentabilidad': parseFloat(r.rentabilidad_pct.toFixed(2)),
-    'Mes':            r.mes,
   }))
 
   const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.json_to_sheet(sheetData)
 
-  // Ancho de columnas
   ws['!cols'] = [
     { wch: 12 }, // Fecha
     { wch: 35 }, // Cliente
-    { wch: 18 }, // Departamento
+    { wch: 16 }, // Empresa
+    { wch: 22 }, // Departamento
     { wch: 12 }, // Tipo
     { wch: 14 }, // Ciudad
+    { wch: 12 }, // Mes
     { wch: 14 }, // Venta Real
     { wch: 12 }, // Costos
     { wch: 12 }, // Margen
     { wch: 14 }, // % Rentabilidad
-    { wch: 18 }, // Mes
   ]
 
   XLSX.utils.book_append_sheet(wb, ws, row.filename || 'DATA')

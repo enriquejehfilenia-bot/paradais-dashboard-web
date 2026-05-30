@@ -1,56 +1,63 @@
 import * as XLSX from 'xlsx'
 
-/* ── Mapa de normalización de departamentos ── */
-const DEPT_MAP: [string, string][] = [
-  ['activac',   'Activaciones'],
-  ['btl',       'BTL'],
-  ['below',     'BTL'],
-  ['digital',   'Digital'],
-  ['redes',     'Digital'],
-  ['social',    'Digital'],
-  ['producc',   'Producción'],
-  ['produc',    'Producción'],
-  ['event',     'Eventos'],
-  ['trade',     'Trade Marketing'],
-  ['medios',    'Medios'],
-  ['medio',     'Medios'],
-  ['media',     'Medios'],
-  ['atl',       'ATL'],
-  ['above',     'ATL'],
-  ['dise',      'Diseño'],
-  ['creati',    'Diseño'],
-  ['relac',     'RRPP'],
-  ['rrpp',      'RRPP'],
-  ['consult',   'Consultoría'],
-  ['estrat',    'Consultoría'],
-  ['fee',       'Fee'],
-]
-
+/* ── Utilidades de normalización de strings ── */
 function nfd(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
+/* ── Normaliza departamento según los nombres reales del Excel ──
+   Estrategia: includes() para agrupar variantes (Comision, Reembolso, Over, Otros, -)
+   NUNCA inventa nombres que no existan en la fuente.
+   Retorna '__SKIP__' para filas de cabecera filtradas como dato.
+── */
 function normalizeDept(raw: string): string {
   if (!raw) return 'Otros'
-  const l = nfd(raw)
-  for (const [k, v] of DEPT_MAP) {
-    if (l.startsWith(k) || l.includes(k)) return v
-  }
-  return raw.trim() || 'Otros'
+  const trimmed = raw.trim()
+  if (!trimmed) return 'Otros'
+
+  const l = nfd(trimmed)
+
+  // Filtrar filas de encabezado que se cuelan como dato
+  if (l === 'departamento') return '__SKIP__'
+
+  // Orden importa: más específico primero
+  if (l.includes('medios atl'))        return 'Medios ATL'
+  if (l.includes('medios digital'))    return 'Medios Digitales'
+  if (l.includes('contenido'))         return 'Contenido Digital'
+  if (l.includes('creatividad') ||
+      l.includes('creativ'))           return 'Creatividad'
+  if (l.includes('producc') ||
+      l.includes('produc'))            return 'Producción'
+  if (l.includes('influencer'))        return 'Influencers'
+  if (l.includes('btl'))               return 'BTL'
+  if (l.includes('fee'))               return 'Fee'
+  if (l.includes('planif') ||
+      l.includes('estrateg'))          return 'Planificación Estratégica'
+  if (l.includes('activac'))           return 'Activaciones'
+  if (l.includes('event'))             return 'Eventos'
+  if (l.includes('trade'))             return 'Trade Marketing'
+  if (l.includes('rrpp') ||
+      l.includes('relac'))             return 'RRPP'
+  // Fallbacks genéricos por tipo de medio
+  if (l.includes('atl'))               return 'Medios ATL'
+  if (l.includes('digital'))           return 'Medios Digitales'
+
+  // Sin match: devolver el valor original limpio
+  return trimmed
 }
 
 /* ── Normaliza ciudad ── */
 const CIUDAD_MAP: [string, string][] = [
-  ['quito',        'Quito'],
-  ['guayaquil',    'Guayaquil'],
-  ['gye',          'Guayaquil'],
-  ['cuenca',       'Cuenca'],
-  ['ambato',       'Ambato'],
-  ['manta',        'Manta'],
-  ['loja',         'Loja'],
-  ['machala',      'Machala'],
-  ['esmeraldas',   'Esmeraldas'],
-  ['santo domingo','Santo Domingo'],
+  ['quito',         'Quito'],
+  ['guayaquil',     'Guayaquil'],
+  ['gye',           'Guayaquil'],
+  ['cuenca',        'Cuenca'],
+  ['ambato',        'Ambato'],
+  ['manta',         'Manta'],
+  ['loja',          'Loja'],
+  ['machala',       'Machala'],
+  ['esmeraldas',    'Esmeraldas'],
+  ['santo domingo', 'Santo Domingo'],
 ]
 
 function normalizeCiudad(raw: string): string {
@@ -64,7 +71,19 @@ function normalizeCiudad(raw: string): string {
   return l
 }
 
-/* ── Mapa nombre de hoja → mes (para fallback cuando Fecha está vacía) ── */
+/* ── Detecta empresa desde nombre de hoja o celda A1 ── */
+function detectEmpresa(sheetName: string, a1Val: string): string {
+  const sheetL = nfd(sheetName)
+  const a1l    = nfd(a1Val)
+  // Chequear nombre de hoja primero (más confiable)
+  if (sheetL.includes('paramedia') || sheetL.includes('media')) return 'Paradais Media'
+  // Luego A1
+  if (a1l.includes('paramedia') || a1l.includes('media'))       return 'Paradais Media'
+  // Default
+  return 'Paradais'
+}
+
+/* ── Mapa nombre de hoja → mes (solo mes, sin año para que TrendChart funcione) ── */
 const SHEET_MES: Record<string, number> = {
   enero:1, ene:1, jan:1, january:1,
   febrero:2, feb:2, february:2,
@@ -80,12 +99,19 @@ const SHEET_MES: Record<string, number> = {
   diciembre:12, dic:12, december:12,
 }
 
-function sheetFallbackMes(sheetName: string, year = 2026): string {
+/*
+  Retorna el nombre del mes en MAYÚSCULAS sin año (ej: "ENERO").
+  TrendChart agrupa por este valor y lo mapea contra MES_ORD.
+  Si no detecta mes en el nombre de hoja, retorna '' (el mes vendrá de la fecha).
+*/
+function sheetFallbackMes(sheetName: string): string {
   const l = nfd(sheetName)
   for (const [k, m] of Object.entries(SHEET_MES)) {
     if (l.startsWith(k) || l.includes(k)) {
-      const d = new Date(year, m - 1, 1)
-      return d.toLocaleString('es-EC', { month: 'long', year: 'numeric' })
+      // Nombre del mes en español, mayúsculas
+      return new Date(2000, m - 1, 1)
+        .toLocaleString('es-EC', { month: 'long' })
+        .toUpperCase()
     }
   }
   return ''
@@ -93,8 +119,8 @@ function sheetFallbackMes(sheetName: string, year = 2026): string {
 
 /* ── Tipos excluidos del ranking privado ── */
 export const TIPOS_EXCL = new Set([
-  'PÚBLICO','PUBLICO','RELACIONADO','RELACIONADOS',
-  'PÃBLICO','PUUBLICO','PUBLIC','PÚBLICO',
+  'PÚBLICO', 'PUBLICO', 'RELACIONADO', 'RELACIONADOS',
+  'PÃBLICO', 'PUUBLICO', 'PUBLIC',
 ])
 
 /* ── Interfaz de fila ── */
@@ -104,19 +130,24 @@ export interface DataRow {
   departamento_limpio: string
   tipo:                string
   ciudad:              string
+  empresa:             string   // 'Paradais' | 'Paradais Media'
   total_venta_real:    number
   costos:              number
   margen:              number
   rentabilidad_pct:    number
-  mes:                 string
+  mes:                 string   // Nombre del mes en MAYÚSCULAS, ej: "ENERO"
 }
 
 /* ── Palabras clave de cabecera ── */
-const HEADER_KEYS = ['fecha','codigo','cliente','tipo','departamento',
-                     'ciudad','venta','base','costo','margen','rentab','total','ingreso']
+const HEADER_KEYS = [
+  'fecha','codigo','cliente','tipo','departamento',
+  'ciudad','venta','base','costo','margen','rentab','total','ingreso',
+]
 
 /* ── Hojas a ignorar ── */
-const SKIP_SHEETS = ['modelo','resumen','plantilla','template','summary','formato','concili']
+const SKIP_SHEETS = [
+  'modelo','resumen','plantilla','template','summary','formato','concili',
+]
 
 /* ── Encuentra la fila de encabezado (max 25 rows) ── */
 function findHeaderRow(ws: XLSX.WorkSheet): number {
@@ -186,20 +217,19 @@ function colNum(row: Record<string, unknown>, ...keys: string[]): number {
 }
 
 /* ── Convierte un valor de fecha a ISO string ──
-   Maneja 3 casos en orden de prioridad:
-   1. Date object nativo (de cellDates:true + raw:true) → directo
-   2. Número Excel serial → convierte via XLSX.SSF
-   3. String → intenta DD/MM/YY primero (formato Ecuador), luego ISO
+   Prioridad:
+   1. Date object nativo (cellDates:true) → directo
+   2. Número serial de Excel → XLSX.SSF
+   3. String DD/MM/YY (formato Ecuador) → regex
+   4. String genérico → new Date()
 ── */
 function toIso(val: unknown): string | null {
   if (val === null || val === undefined || val === '') return null
 
-  // Caso 1: Date object nativo de SheetJS
   if (val instanceof Date) {
     return isNaN(val.getTime()) ? null : val.toISOString()
   }
 
-  // Caso 2: número = serial de Excel
   if (typeof val === 'number') {
     try {
       const parsed = XLSX.SSF.parse_date_code(val)
@@ -214,26 +244,23 @@ function toIso(val: unknown): string | null {
   const s = String(val).trim()
   if (!s) return null
 
-  // Caso 3a: DD/MM/YY o DD/MM/YYYY (formato Ecuador)
+  // DD/MM/YY o DD/MM/YYYY (formato Ecuador — siempre asumir DD/MM primero)
   const ddmm = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/)
   if (ddmm) {
     const dd = parseInt(ddmm[1]), mm = parseInt(ddmm[2])
     let yy = parseInt(ddmm[3])
     if (yy < 100) yy += 2000
-    // Si DD > 12 definitivamente es DD/MM/YY
-    // Si DD <= 12 puede ser ambiguo — asumir DD/MM/YY (Ecuador)
     if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
       const d = new Date(Date.UTC(yy, mm - 1, dd))
       if (!isNaN(d.getTime())) return d.toISOString()
     }
-    // Si falla DD/MM, intentar MM/DD como fallback
+    // Fallback MM/DD si DD/MM inválido
     if (dd >= 1 && dd <= 12 && mm >= 1 && mm <= 31) {
       const d = new Date(Date.UTC(yy, dd - 1, mm))
       if (!isNaN(d.getTime())) return d.toISOString()
     }
   }
 
-  // Caso 3b: intentar parseo genérico (ISO, etc.)
   try {
     const d = new Date(s)
     return isNaN(d.getTime()) ? null : d.toISOString()
@@ -241,17 +268,24 @@ function toIso(val: unknown): string | null {
 }
 
 /* ── Parsea una hoja de datos ── */
-function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
+function parseSheet(
+  ws:        XLSX.WorkSheet,
+  sheetName: string = '',
+  empresa:   string = 'Paradais',
+): DataRow[] {
   const headerRowIdx = findHeaderRow(ws)
-  // raw:true → fechas como Date objects nativos, números como number
   const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    raw:    true,
+    raw:    true,   // fechas como Date, números como number
     defval: '',
     range:  headerRowIdx,
   })
 
-  // El mes SIEMPRE se deriva del nombre de la hoja si esta lo indica.
-  // Es la fuente más confiable: "ENERO" = enero 2026, etc.
+  /*
+    mes viene del nombre de la hoja cuando es posible (ENERO, FEBRERO…).
+    Esto es más confiable que parsear la celda de fecha.
+    Formato: MAYÚSCULAS sin año → "ENERO", "FEBRERO", etc.
+    TrendChart usa este formato directamente.
+  */
   const sheetMes = sheetFallbackMes(sheetName)
 
   const rows: DataRow[] = []
@@ -260,36 +294,42 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
     const cliente = colVal(raw, 'cliente','cuenta','client','empresa','razon')
     if (!cliente || /^(total|subtotal|suma)/i.test(cliente.trim())) continue
 
+    // Departamento — filtrar filas de cabecera que se cuelan
+    const deptRaw           = colVal(raw, 'departamento','depto','dept','area','servicio','linea')
+    const departamento_limpio = normalizeDept(deptRaw)
+    if (departamento_limpio === '__SKIP__') continue
+
     // Ventas = Base Iva + Comisión (ambas son ingresos del cliente)
-    const baseIva  = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
-                             'ingreso','revenue','facturado','honorario')
-    const comision = colNum(raw, 'comis','commission','comision','comission')
+    const baseIva   = colNum(raw, 'base iva','base_iva','total_venta','venta_real','venta',
+                              'ingreso','revenue','facturado','honorario')
+    const comision  = colNum(raw, 'comis','commission','comision','comission')
     const totalVenta = baseIva + comision
     if (totalVenta === 0) continue
 
     const costos = colNum(raw, 'costo real','costo_real','costo','cost','gasto','egreso')
     const margen  = totalVenta - costos
 
-    // % Rentabilidad: recalcular siempre sobre el total real (base + comisión)
+    // % Rentabilidad: siempre recalculada sobre venta real total
     const rentab = totalVenta > 0 ? (margen / totalVenta) * 100 : 0
 
-    // Fecha — usar colRaw para obtener Date object nativo o serial numérico
+    // Fecha
     const fechaRaw = colRaw(raw, 'fecha','date')
     const fecha    = toIso(fechaRaw)
 
-    // Mes — prioridad: nombre de hoja (más confiable) → fecha → vacío
+    // Mes — prioridad: nombre de hoja (más confiable) → derivado de fecha → vacío
     let mes: string
     if (sheetMes) {
-      mes = sheetMes  // ENERO→"enero de 2026", FEBRERO→"febrero de 2026", etc.
+      mes = sheetMes
     } else if (fecha) {
       try {
-        mes = new Date(fecha).toLocaleString('es-EC', { month: 'long', year: 'numeric' })
+        mes = new Date(fecha)
+          .toLocaleString('es-EC', { month: 'long' })
+          .toUpperCase()
       } catch { mes = '' }
     } else {
       mes = ''
     }
 
-    const deptRaw   = colVal(raw, 'departamento','depto','dept','area','servicio','linea')
     const tipo      = colVal(raw, 'tipo','type','categoria','category').toUpperCase()
     const ciudadRaw = colVal(raw, 'ciudad','city','ubicacion','location','provincia','region','localidad')
     const ciudad    = normalizeCiudad(ciudadRaw)
@@ -297,9 +337,10 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName = ''): DataRow[] {
     rows.push({
       fecha,
       cliente:             cliente.replace(/\s+/g, ' ').trim(),
-      departamento_limpio: normalizeDept(deptRaw),
+      departamento_limpio,
       tipo,
       ciudad,
+      empresa,
       total_venta_real: totalVenta,
       costos,
       margen,
@@ -378,8 +419,14 @@ export function parseExcel(buffer: ArrayBuffer): {
     if (skipProjection.some(k => l.includes(k))) continue
     if (!isDataSheet(sheetName)) continue
 
-    const ws     = wb.Sheets[sheetName]
-    const parsed = parseSheet(ws, sheetName)
+    const ws = wb.Sheets[sheetName]
+
+    // Leer celda A1 para detectar empresa (respaldo al nombre de hoja)
+    const a1Cell = ws['A1']
+    const a1Val  = a1Cell?.v ? String(a1Cell.v).trim() : ''
+    const empresa = detectEmpresa(sheetName, a1Val)
+
+    const parsed = parseSheet(ws, sheetName, empresa)
 
     if (parsed.length > 0) {
       allRows.push(...parsed)

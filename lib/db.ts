@@ -1,15 +1,14 @@
 /**
- * Capa de almacenamiento — Vercel Env Var + In-Memory Cache
+ * Capa de almacenamiento — In-Memory Cache + process.env fallback
  *
  * Estrategia:
  *  1. Los datos parseados del Excel se comprimen (gzip) y codifican en base64.
- *  2. La cadena comprimida se guarda como variable de entorno en Vercel (≈11 KB).
+ *  2. La cadena comprimida se guarda en process.env.DASHBOARD_DATA_GZ mediante el
+ *     script local scripts/update-env-data.mjs (que usa Vercel CLI con OAuth).
  *  3. En memoria (módulo-level) se guarda una copia para requests rápidos.
- *  4. En cold start se recupera el env var via la API de Vercel.
+ *  4. En cold start se lee DASHBOARD_DATA_GZ del proceso (baked-in al deploy).
  *
- * Env vars requeridas:
- *  VERCEL_TOKEN      — personal/team token de Vercel (encryted)
- *  VERCEL_PROJECT_ID — ID del proyecto Vercel
+ * No se necesita VERCEL_TOKEN — el env var se gestiona vía CLI local.
  */
 
 import { gzip, gunzip } from 'zlib'
@@ -25,24 +24,20 @@ export interface StoredData {
   filename:    string
   row_count:   number
   updated_at:  string
+  // Pre-computed totals (script-side, IEEE-754 safe)
+  total_ventas?: number | null
+  total_costos?: number | null
+  total_margen?: number | null
 }
 
 /* ── Cache en memoria (persiste mientras la instancia esté caliente) ── */
 let memStore: StoredData | null = null
 
-/* ── Constantes ── */
+/* ── Clave del env var ── */
 const ENV_KEY = 'DASHBOARD_DATA_GZ'
 
-function getVercelConfig(): { token: string; projectId: string } | null {
-  const token = process.env.VERCEL_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) return null
-  return { token, projectId }
-}
-
-/* ── Comprime y codifica datos para almacenarlos como env var ── */
-async function compress(data: StoredData): Promise<string> {
-  // Omitir excel_b64 para mantener tamaño pequeño (solo records+projections son necesarios para el dashboard)
+/* ── Comprime y codifica datos para almacenarlos ── */
+export async function compress(data: StoredData): Promise<string> {
   const slim = {
     records:     data.records,
     projections: data.projections,
@@ -55,125 +50,94 @@ async function compress(data: StoredData): Promise<string> {
   return compressed.toString('base64')
 }
 
-/* ── Descomprime datos recuperados del env var ── */
+/* ── Descomprime datos — soporta formato v2 columnar y v1 legacy ── */
 async function decompress(b64: string): Promise<StoredData | null> {
   try {
     const buf = Buffer.from(b64, 'base64')
     const decompressed = await gunzipAsync(buf)
     const obj = JSON.parse(decompressed.toString('utf-8'))
+
+    // Formato v2 columnar: tiene array 'r' con índices a pools
+    if (Array.isArray(obj.r)) {
+      const pc  = (obj.pc  as string[]) ?? []
+      const pd  = (obj.pd  as string[]) ?? []
+      const pt  = (obj.pt  as string[]) ?? []
+      const pci = (obj.pci as string[]) ?? []
+      const pe  = (obj.pe  as string[]) ?? []
+      const pm  = (obj.pm  as string[]) ?? []
+
+      const expandedRows = (obj.r as number[][]).map(row => {
+        const [ci, di, ti, cii, ei, mi, fd, tv, co] = row
+        const total_venta_real = tv ?? 0
+        const costos           = co ?? 0
+        const margen           = total_venta_real - costos
+        const rentabilidad_pct = total_venta_real > 0
+          ? Math.round((margen / total_venta_real) * 10000) / 100
+          : 0
+        const fecha = (fd === -1 || fd == null)
+          ? null
+          : new Date(fd * 86400000).toISOString()
+        return {
+          fecha,
+          cliente:             pc[ci]  ?? '',
+          departamento_limpio: pd[di]  ?? '',
+          tipo:                pt[ti]  ?? '',
+          ciudad:              pci[cii] ?? '',
+          empresa:             pe[ei]  ?? '',
+          total_venta_real,
+          costos,
+          margen,
+          rentabilidad_pct,
+          mes:                 pm[mi]  ?? '',
+        }
+      })
+
+      return {
+        records:     JSON.stringify(expandedRows),
+        projections: JSON.stringify(obj.proj ?? {}),
+        excel_b64:   '',
+        filename:    obj.fn  ?? '',
+        row_count:   obj.rc  ?? expandedRows.length,
+        updated_at:  obj.ua  ?? '',
+        // Totales pre-calculados por el script (exactos, sin float acumulado)
+        total_ventas: obj.tv ?? null,
+        total_costos: obj.tc ?? null,
+        total_margen: obj.tm ?? null,
+      }
+    }
+
+    // Formato v1 legacy: tiene clave 'records' con JSON serializado
     return { ...obj, excel_b64: '' } as StoredData
   } catch {
     return null
   }
 }
 
-/* ── Elimina el env var existente en Vercel ── */
-async function deleteVercelEnv(token: string, projectId: string): Promise<void> {
-  // Listar env vars y encontrar el nuestro
-  const listRes = await fetch(
-    `https://api.vercel.com/v9/projects/${projectId}/env`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
-  if (!listRes.ok) return
-  const listData = await listRes.json() as { envs?: { id: string; key: string }[] }
-  const existing = listData.envs?.find(e => e.key === ENV_KEY)
-  if (existing) {
-    await fetch(
-      `https://api.vercel.com/v9/projects/${projectId}/env/${existing.id}`,
-      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
-    )
-  }
-}
-
-/* ── Guarda datos ── */
+/* ── Guarda datos en memoria ── */
 export async function saveData(data: StoredData) {
-  // Siempre actualizar cache en memoria
   memStore = data
-
-  const cfg = getVercelConfig()
-  if (!cfg) {
-    // Sin configuración de Vercel: solo memoria (funciona para la instancia actual)
-    console.warn('VERCEL_TOKEN/VERCEL_PROJECT_ID not set — using in-memory only')
-    return
-  }
-
-  try {
-    const b64 = await compress(data)
-    console.log(`Compressed data: ${b64.length} chars (${(b64.length/1024).toFixed(1)} KB)`)
-
-    // Eliminar env var existente y crear nueva
-    await deleteVercelEnv(cfg.token, cfg.projectId)
-
-    const createRes = await fetch(
-      `https://api.vercel.com/v9/projects/${cfg.projectId}/env`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key:    ENV_KEY,
-          value:  b64,
-          type:   'plain',    // 'plain' permite leer el valor via API (no son credenciales sensibles)
-          target: ['production', 'preview', 'development'],
-        }),
-      }
-    )
-
-    if (!createRes.ok) {
-      const err = await createRes.text()
-      console.error('Failed to save env var:', err)
-    } else {
-      console.log('Data saved to Vercel env var successfully')
-    }
-  } catch (e) {
-    console.error('saveData error:', e)
-    // No relanzar — la memoria ya tiene los datos para esta instancia
-  }
+  console.log(`Data saved to memory: ${data.row_count} rows, filename: ${data.filename}`)
 }
 
 /* ── Recupera datos ── */
 export async function getData(): Promise<StoredData | null> {
-  // 1. Cache en memoria (rápido)
+  // 1. Cache en memoria (rápido, misma instancia caliente)
   if (memStore) return memStore
 
-  // 2. Env var en proceso (disponible si fue seteada antes del deploy actual)
+  // 2. Env var baked-in al deploy (gestionado por scripts/update-env-data.mjs)
   const envVal = process.env[ENV_KEY]
   if (envVal) {
-    const data = await decompress(envVal)
-    if (data) {
-      memStore = data
-      return data
+    try {
+      const data = await decompress(envVal)
+      if (data) {
+        memStore = data
+        console.log(`Data loaded from env var: ${data.row_count} rows`)
+        return data
+      }
+    } catch (e) {
+      console.error('decompress error:', e)
     }
   }
 
-  // 3. Llamar a la API de Vercel para obtener el valor actual del env var
-  const cfg = getVercelConfig()
-  if (!cfg) return null
-
-  try {
-    const listRes = await fetch(
-      `https://api.vercel.com/v9/projects/${cfg.projectId}/env`,
-      { headers: { Authorization: `Bearer ${cfg.token}` } }
-    )
-    if (!listRes.ok) return null
-    const listData = await listRes.json() as { envs?: { id: string; key: string }[] }
-    const envEntry = listData.envs?.find(e => e.key === ENV_KEY)
-    if (!envEntry) return null
-
-    // Obtener el valor desencriptado
-    const valRes = await fetch(
-      `https://api.vercel.com/v9/projects/${cfg.projectId}/env/${envEntry.id}`,
-      { headers: { Authorization: `Bearer ${cfg.token}` } }
-    )
-    if (!valRes.ok) return null
-    const valData = await valRes.json() as { value?: string }
-    const b64 = valData.value
-    if (!b64) return null
-
-    const data = await decompress(b64)
-    if (data) memStore = data
-    return data
-  } catch (e) {
-    console.error('getData error:', e)
-    return null
-  }
+  return null
 }

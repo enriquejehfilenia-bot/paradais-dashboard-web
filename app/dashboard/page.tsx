@@ -1,20 +1,23 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getData, downloadExcel } from '@/lib/api'
-import { clearAuth, isAdmin } from '@/lib/auth'
+import { getData } from '@/lib/api'
+import { clearAuth } from '@/lib/auth'
 import Dashboard from '@/components/Dashboard'
 
 export default function DashboardPage() {
   const router   = useRouter()
   const [state, setState] = useState<{
-    loading: boolean
-    error:   string | null
-    data:    Record<string, unknown>[] | null
-    projections: Record<string, number>
-    filename:    string
-    updatedAt:   string
-  }>({ loading: true, error: null, data: null, projections: {}, filename: '', updatedAt: '' })
+    loading:      boolean
+    error:        string | null
+    data:         Record<string, unknown>[] | null
+    projections:  Record<string, number>
+    filename:     string
+    updatedAt:    string
+    totalVentas:  number | null
+    totalCostos:  number | null
+    totalMargen:  number | null
+  }>({ loading: true, error: null, data: null, projections: {}, filename: '', updatedAt: '', totalVentas: null, totalCostos: null, totalMargen: null })
 
   useEffect(() => {
     getData()
@@ -30,23 +33,18 @@ export default function DashboardPage() {
           projections: res.projections,
           filename:    res.filename,
           updatedAt:   res.updated_at,
+          totalVentas: res.total_ventas ?? null,
+          totalCostos: res.total_costos ?? null,
+          totalMargen: res.total_margen ?? null,
         })
       })
       .catch(() => setState(s => ({ ...s, loading: false, error: 'Error al conectar con el servidor.' })))
   }, [])
 
-  function logout() { clearAuth(); router.replace('/login') }
-
-  async function handleDownload() {
-    try {
-      const blob = await downloadExcel()
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
-      a.download = `DATA_LIMPIA_${state.filename || 'export'}.xlsx`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch { alert('Error al descargar el archivo') }
+  async function logout() {
+    clearAuth()
+    try { await fetch('/api/auth/logout', { method: 'POST' }) } catch {}
+    router.replace('/login')
   }
 
   if (state.loading) return (
@@ -75,10 +73,11 @@ export default function DashboardPage() {
       data={state.data!}
       projections={state.projections}
       onLogout={logout}
-      onDownload={handleDownload}
-      isAdmin={isAdmin()}
       filename={state.filename}
       updatedAt={state.updatedAt}
+      totalVentas={state.totalVentas}
+      totalCostos={state.totalCostos}
+      totalMargen={state.totalMargen}
     />
   )
 }

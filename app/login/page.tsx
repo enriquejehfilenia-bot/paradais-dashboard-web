@@ -51,14 +51,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center shadow-lg">
-            <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
-              <rect x="10" y="7"  width="6" height="13" rx="1" fill="#EAB308"/>
-              <path d="M16 7 H22 Q28 7 28 13.5 Q28 20 22 20 H16 Z" fill="#EAB308"/>
-              <rect x="10" y="22" width="6" height="15" rx="1" fill="#EAB308"/>
-              <path d="M16 22 H23 Q30 22 30 29.5 Q30 37 23 37 H16 Z" fill="#EAB308"/>
-            </svg>
-          </div>
+          <img src="/icon-192.png" alt="Paradais DDB" className="w-20 h-20 rounded-2xl shadow-lg" />
         </div>
 
         {/* Card */}

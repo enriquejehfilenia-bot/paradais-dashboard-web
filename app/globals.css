@@ -8,22 +8,36 @@
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: #FDFCFA;
-  color: #1C1917;
+  background-color: #0F0E0D;
+  color: #F2F0EE;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar sutil */
+/* Scrollbar oscura */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #F5F5F4; }
-::-webkit-scrollbar-thumb { background: #D6D3D1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #A8A29E; }
+::-webkit-scrollbar-track { background: #1C1917; }
+::-webkit-scrollbar-thumb { background: #3D3733; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #57534E; }
 
-/* Select oscuro (filtros) */
+/* Input de texto / fecha — superficie elevada sobre card */
+input.dark-input, input[type='date'].dark-input {
+  background-color: #242120;
+  color: #F2F0EE;
+  border: 1px solid #2C2926;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+  color-scheme: dark;
+}
+input.dark-input:focus,
+input[type='date'].dark-input:focus { outline: none; border-color: #EAB308; box-shadow: 0 0 0 2px rgba(234,179,8,0.15); }
+input.dark-input::placeholder { color: #57534E; }
+
+/* Select oscuro */
 select.dark-select {
-  background-color: #1C1917;
-  color: #F5F5F4;
-  border: 1px solid #3D3733;
+  background-color: #242120;
+  color: #F2F0EE;
+  border: 1px solid #2C2926;
   border-radius: 8px;
   padding: 0.4rem 0.75rem;
   font-size: 0.875rem;
@@ -35,15 +49,3 @@ select.dark-select {
   cursor: pointer;
 }
 select.dark-select:focus { outline: none; border-color: #EAB308; }
-
-/* Input de fecha oscuro */
-input[type='date'].dark-input {
-  background-color: #1C1917;
-  color: #F5F5F4;
-  border: 1px solid #3D3733;
-  border-radius: 8px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.875rem;
-  color-scheme: dark;
-}
-input[type='date'].dark-input:focus { outline: none; border-color: #EAB308; }

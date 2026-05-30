@@ -26,11 +26,14 @@ export async function GET(req: NextRequest) {
       })
     }
     return NextResponse.json({
-      data:        JSON.parse(row.records),
-      projections: JSON.parse(row.projections ?? '{}'),
-      filename:    row.filename,
-      updated_at:  row.updated_at,
-      row_count:   row.row_count,
+      data:         JSON.parse(row.records),
+      projections:  JSON.parse(row.projections ?? '{}'),
+      filename:     row.filename,
+      updated_at:   row.updated_at,
+      row_count:    row.row_count,
+      total_ventas: row.total_ventas ?? null,
+      total_costos: row.total_costos ?? null,
+      total_margen: row.total_margen ?? null,
     })
   } catch (e) {
     console.error('/api/data', e)

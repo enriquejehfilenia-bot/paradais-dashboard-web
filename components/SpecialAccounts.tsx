@@ -1,14 +1,19 @@
 'use client'
 import TrafficLight from './TrafficLight'
 
-const TIPOS_EXCL = new Set(['PÚBLICO','PUBLICO','RELACIONADO','RELACIONADOS','PUBLIC'])
-const BP_RE      = /BANCO.*PAC[IÍ]FICO|PAC[IÍ]FICO.*BANCO/i
+export const BP_RE = /BANCO.*PAC[IÍ]FICO|PAC[IÍ]FICO.*BANCO|^BP$/i
 
-const fm = (n: number) =>
-  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+// Filas de resumen que no son clientes reales
+const SKIP_RE = /^(TOTAL|OTROS CLIENTES|SUBTOTAL|SUMA|GRAND TOTAL)/i
+
+export function isEspecial(cli: string, tipo: string): boolean {
+  if (BP_RE.test(cli)) return true
+  const t = tipo.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return t.includes('PUBLIC') || t.includes('RELACION')
+}
 
 function normalize(s: string) {
-  return s.toUpperCase().replace(/[ÍÁÉÓÚÜ]/g, c => ({'Í':'I','Á':'A','É':'E','Ó':'O','Ú':'U','Ü':'U'}[c]??c))
+  return s.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
 }
 
 interface Props {
@@ -17,59 +22,66 @@ interface Props {
 }
 
 export default function SpecialAccounts({ data, projections }: Props) {
-  // Filtrar cuentas especiales: BP + Público + Relacionado
-  const especiales = data.filter(r => {
+  // Ventas reales de cuentas especiales
+  const byClient: Record<string, number> = {}
+  for (const r of data) {
     const cli  = String(r.cliente ?? '')
-    const tipo = normalize(String(r.tipo ?? ''))
-    return BP_RE.test(cli) || TIPOS_EXCL.has(tipo)
-  })
-
-  const byClient: Record<string, { ventas: number; costos: number }> = {}
-  for (const r of especiales) {
-    const c = String(r.cliente ?? '')
-    if (!byClient[c]) byClient[c] = { ventas: 0, costos: 0 }
-    byClient[c].ventas += Number(r.total_venta_real ?? 0)
-    byClient[c].costos += Number(r.costos           ?? 0)
+    const tipo = String(r.tipo ?? '')
+    if (!isEspecial(cli, tipo)) continue
+    byClient[cli] = (byClient[cli] ?? 0) + Number(r.total_venta_real ?? 0)
   }
 
-  const sorted = Object.entries(byClient).sort(([, a], [, b]) => b.ventas - a.ventas)
+  // Solo mostrar proyecciones que corresponden a cuentas especiales (BP por nombre)
+  // + excluir filas de resumen (TOTAL, OTROS CLIENTES, etc.)
+  const projEspeciales = Object.entries(projections).filter(([k]) => {
+    if (SKIP_RE.test(k.trim())) return false
+    return BP_RE.test(k)  // solo BP va a Cuentas Especiales por proyección
+  })
 
-  if (!sorted.length) return (
-    <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+  // También incluir clientes especiales reales que tengan ventas pero no estén en proyección
+  const allLabels = new Set(projEspeciales.map(([k]) => normalize(k)))
+  const sinProy = Object.entries(byClient)
+    .filter(([c]) => !Array.from(allLabels).some(pn => {
+      const cn = normalize(c)
+      return cn.includes(pn) || pn.includes(cn)
+    }))
+    .sort(([, a], [, b]) => b - a)
+
+  const hasData = projEspeciales.length > 0 || sinProy.length > 0
+
+  if (!hasData) return (
+    <div className="bg-card rounded-2xl border border-border p-5">
       <p className="text-xs font-bold text-text-soft uppercase tracking-widest mb-3">⭐ Cuentas Especiales</p>
       <p className="text-sm text-text-soft italic">Sin datos de cuentas especiales</p>
     </div>
   )
 
   return (
-    <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+    <div className="bg-card rounded-2xl border border-border p-5">
       <p className="text-xs font-bold text-text-soft uppercase tracking-widest mb-3">⭐ Cuentas Especiales</p>
       <p className="text-[0.65rem] font-bold text-text-soft uppercase tracking-widest mb-3">
         Semáforos de cumplimiento
       </p>
-      {sorted.map(([cliente, { ventas }]) => {
-        const cn  = normalize(cliente)
-        const key = Object.keys(projections).find(k => {
-          const kn = normalize(k)
-          return kn.includes(cn) || cn.includes(kn)
+
+      {/* Proyectados especiales */}
+      {projEspeciales
+        .sort(([, a], [, b]) => b - a)
+        .map(([projCliente, meta]) => {
+          const pn = normalize(projCliente)
+          const ventasReal = byClient[
+            Object.keys(byClient).find(c => {
+              const cn = normalize(c)
+              return cn.includes(pn) || pn.includes(cn)
+            }) ?? ''
+          ] ?? 0
+          return <TrafficLight key={projCliente} label={projCliente} real={ventasReal} meta={meta} />
         })
+      }
 
-        if (key) {
-          return <TrafficLight key={cliente} label={cliente} real={ventas} meta={projections[key]} />
-        }
-
-        return (
-          <div key={cliente} className="border-l-4 border-l-[#475569] bg-stone-50 rounded-r-lg px-3 py-2 mb-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-text-main">— {cliente}</span>
-              <span className="text-xs text-text-soft italic">sin proyección</span>
-            </div>
-            <p className="text-xs text-text-soft mt-0.5">
-              Real: <strong className="text-text-main">{fm(ventas)}</strong>
-            </p>
-          </div>
-        )
-      })}
+      {/* Especiales sin proyección (solo ventas reales) */}
+      {sinProy.map(([cliente, ventas]) => (
+        <TrafficLight key={cliente} label={cliente} real={ventas} meta={0} />
+      ))}
     </div>
   )
 }

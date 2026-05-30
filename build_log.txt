@@ -1,0 +1,61 @@
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 2 cores, 8 GB
+Retrieving list of deployment files...
+Downloading 37 deployment files...
+Restored build cache from previous deployment (4rVG8yYdbG3Y7BzhtruQNEcHjUKi)
+Running "vercel build"
+Vercel CLI 54.4.1
+Installing dependencies...
+up to date in 1s
+112 packages are looking for funding
+  run `npm fund` for details
+Detected Next.js version: 14.2.3
+Running "npm run build"
+> paradais-dashboard@1.0.0 build
+> next build
+  ▲ Next.js 14.2.3
+   Creating an optimized production build ...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: /vercel/path0/public/sw.js
+ ○ (pwa)   URL: /sw.js
+ ○ (pwa)   Scope: /
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/12) ...
+   Generating static pages (3/12) 
+   Generating static pages (6/12) 
+   Generating static pages (9/12) 
+ ✓ Generating static pages (12/12)
+   Finalizing page optimization ...
+   Collecting build traces ...
+Route (app)                              Size     First Load JS
+┌ ○ /                                    861 B          90.2 kB
+├ ○ /_not-found                          872 B          90.2 kB
+├ ○ /admin                               2.93 kB         115 kB
+├ ƒ /api/admin/upload                    0 B                0 B
+├ ƒ /api/auth/login                      0 B                0 B
+├ ƒ /api/auth/logout                     0 B                0 B
+├ ƒ /api/data                            0 B                0 B
+├ ƒ /api/download                        0 B                0 B
+├ ○ /dashboard                           113 kB          225 kB
+└ ○ /login                               2.28 kB         115 kB
++ First Load JS shared by all            89.3 kB
+  ├ chunks/190-c396fbfd467ea607.js       33.7 kB
+  ├ chunks/fd9d1056-b984c68a60c5470f.js  53.6 kB
+  └ other shared chunks (total)          2.01 kB
+ƒ Middleware                             27 kB
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+Traced Next.js server files in: 82.96ms
+Created all serverless functions in: 170.859ms
+Collected static files (public/, static/, .next/static): 6.366ms
+Build Completed in /vercel/output [49s]
+Deploying outputs...
+Deployment completed
+Creating build cache...
+Created build cache: 15s
+Uploading build cache [106.46 MB]
+Build cache uploaded: 1.994s

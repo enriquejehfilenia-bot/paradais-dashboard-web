@@ -2,6 +2,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
+  "alias": ["paradaisddb-ventas.vercel.app"],
   "rewrites": [
     { "source": "/(.*)", "destination": "/$1" }
   ]

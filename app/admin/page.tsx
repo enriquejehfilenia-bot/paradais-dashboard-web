@@ -174,8 +174,12 @@ export default function AdminPage() {
         </div>
 
         {/* Nota de seguridad */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
-          <strong>Nota:</strong> Al subir un nuevo archivo, todos los usuarios verán la data actualizada inmediatamente. El archivo anterior queda reemplazado.
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800 space-y-2">
+          <p><strong>Upload web:</strong> Los datos se actualizan de inmediato en la sesión activa. Para persistencia permanente (sobrevivir reinicios del servidor), usa el script local:</p>
+          <code className="block bg-yellow-100 rounded px-3 py-1.5 font-mono text-xs">
+            node scripts/update-env-data.mjs &lt;ruta-excel&gt;
+          </code>
+          <p className="text-xs text-yellow-700">El script actualiza el env var en Vercel y hace redeploy automático.</p>
         </div>
       </div>
     </div>

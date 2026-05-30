@@ -1,13 +1,15 @@
 'use client'
 import { useMemo } from 'react'
+import Combobox from './Combobox'
 
 export interface Filters {
-  tipo:     string
-  ciudad:   string
-  depto:    string
-  cliente:  string
-  desde:    string
-  hasta:    string
+  empresa:   string[]   // multi-select
+  tipo:      string[]   // multi-select
+  ciudad:    string[]   // multi-select
+  depto:     string[]   // multi-select
+  clientes:  string[]   // multi-select
+  desde:     string
+  hasta:     string
 }
 
 interface Props {
@@ -15,7 +17,6 @@ interface Props {
   filters:  Filters
   onChange: (f: Filters) => void
   onLogout: () => void
-  isAdmin:  boolean
 }
 
 function unique(data: Record<string, unknown>[], key: string): string[] {
@@ -25,64 +26,98 @@ function unique(data: Record<string, unknown>[], key: string): string[] {
   return Array.from(new Set(vals)).sort()
 }
 
-const selectCls = "dark-select w-full text-xs"
-const inputCls  = "dark-input w-full text-xs"
-const labelCls  = "block text-[0.65rem] font-bold text-text-soft uppercase tracking-widest mb-1"
+const inputCls = "dark-input w-full text-xs"
+const labelCls = "block text-[0.65rem] font-bold text-text-soft uppercase tracking-widest mb-1"
 
-export default function FilterBar({ data, filters, onChange, onLogout, isAdmin }: Props) {
-  const tipos    = useMemo(() => unique(data, 'tipo'),              [data])
-  const ciudades = useMemo(() => unique(data, 'ciudad'),           [data])
+export default function FilterBar({ data, filters, onChange, onLogout: _onLogout }: Props) {
+  const empresas = useMemo(() => unique(data, 'empresa'),             [data])
+  const tipos    = useMemo(() => unique(data, 'tipo'),                [data])
+  const ciudades = useMemo(() => unique(data, 'ciudad'),              [data])
   const deptos   = useMemo(() => unique(data, 'departamento_limpio'), [data])
-  const clientes = useMemo(() => unique(data, 'cliente'),          [data])
+  const clientes = useMemo(() => unique(data, 'cliente'),             [data])
 
-  const set = (k: keyof Filters) => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) =>
-    onChange({ ...filters, [k]: e.target.value })
+  const setDate = (k: 'desde' | 'hasta') =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      onChange({ ...filters, [k]: e.target.value })
 
   return (
-    <div className="bg-white rounded-xl border border-border shadow-card px-4 py-3 mb-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 items-end">
+    <div className="bg-card rounded-xl border border-border px-4 py-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 items-start">
+
+        {/* Empresa */}
+        {empresas.length > 1 && (
+          <div>
+            <label className={labelCls}>Empresa</label>
+            <Combobox
+              multi
+              options={empresas}
+              value={filters.empresa}
+              onChange={v => onChange({ ...filters, empresa: v })}
+              placeholder="Todas"
+            />
+          </div>
+        )}
+
         {/* Tipo */}
         <div>
           <label className={labelCls}>Tipo</label>
-          <select className={selectCls} value={filters.tipo} onChange={set('tipo')}>
-            <option value="">Todos</option>
-            {tipos.map(v => <option key={v}>{v}</option>)}
-          </select>
+          <Combobox
+            multi
+            options={tipos}
+            value={filters.tipo}
+            onChange={v => onChange({ ...filters, tipo: v })}
+            placeholder="Todos"
+          />
         </div>
+
         {/* Ciudad */}
         <div>
           <label className={labelCls}>Ciudad</label>
-          <select className={selectCls} value={filters.ciudad} onChange={set('ciudad')}>
-            <option value="">Todas</option>
-            {ciudades.map(v => <option key={v}>{v}</option>)}
-          </select>
+          <Combobox
+            multi
+            options={ciudades}
+            value={filters.ciudad}
+            onChange={v => onChange({ ...filters, ciudad: v })}
+            placeholder="Todas"
+          />
         </div>
+
         {/* Departamento */}
         <div className="md:col-span-1 lg:col-span-1">
           <label className={labelCls}>Departamento</label>
-          <select className={selectCls} value={filters.depto} onChange={set('depto')}>
-            <option value="">Todos</option>
-            {deptos.map(v => <option key={v}>{v}</option>)}
-          </select>
+          <Combobox
+            multi
+            options={deptos}
+            value={filters.depto}
+            onChange={v => onChange({ ...filters, depto: v })}
+            placeholder="Todos"
+          />
         </div>
+
         {/* Cliente */}
         <div className="md:col-span-1 lg:col-span-2">
           <label className={labelCls}>Cliente</label>
-          <select className={selectCls} value={filters.cliente} onChange={set('cliente')}>
-            <option value="">Todos</option>
-            {clientes.map(v => <option key={v}>{v}</option>)}
-          </select>
+          <Combobox
+            multi
+            options={clientes}
+            value={filters.clientes}
+            onChange={v => onChange({ ...filters, clientes: v })}
+            placeholder="Todos"
+          />
         </div>
+
         {/* Desde */}
         <div>
           <label className={labelCls}>Desde</label>
-          <input type="date" className={inputCls} value={filters.desde} onChange={set('desde')} />
+          <input type="date" className={inputCls} value={filters.desde} onChange={setDate('desde')} />
         </div>
+
         {/* Hasta */}
         <div>
           <label className={labelCls}>Hasta</label>
-          <input type="date" className={inputCls} value={filters.hasta} onChange={set('hasta')} />
+          <input type="date" className={inputCls} value={filters.hasta} onChange={setDate('hasta')} />
         </div>
+
       </div>
     </div>
   )

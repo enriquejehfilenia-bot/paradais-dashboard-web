@@ -7,10 +7,10 @@ function getSecret() {
 }
 
 export interface TokenPayload extends JWTPayload {
-  role: 'admin' | 'user'
+  role: 'admin' | 'medios'
 }
 
-export async function signToken(role: 'admin' | 'user'): Promise<string> {
+export async function signToken(role: 'admin' | 'medios'): Promise<string> {
   return new SignJWT({ role })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()

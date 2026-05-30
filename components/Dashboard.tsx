@@ -1,24 +1,28 @@
 'use client'
-import { useState, useMemo, useCallback } from 'react'
-import KPICard        from './KPICard'
+import { useState, useMemo, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { downloadDashboardPDF } from '@/lib/downloadPDF'
+import KPICard         from './KPICard'
 import FilterBar, { Filters } from './FilterBar'
-import TrendChart     from './TrendChart'
-import DonutChart     from './DonutChart'
+import TrendChart      from './TrendChart'
+import DonutChart      from './DonutChart'
 import TopClientsChart from './TopClientsChart'
 import SpecialAccounts from './SpecialAccounts'
 
 const fm = (n: number) =>
-  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+  '$' + Math.round(n).toLocaleString('es-EC', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const fp = (n: number) => `${n.toFixed(1)}%`
 
 interface Props {
-  data:        Record<string, unknown>[]
-  projections: Record<string, number>
+  data:         Record<string, unknown>[]
+  projections:  Record<string, number>
   onLogout:    () => void
-  onDownload:  () => void
-  isAdmin:     boolean
   filename?:   string
-  updatedAt?:  string
+  updatedAt?:   string
+  // Pre-computed totals from server (exact, no float accumulation)
+  totalVentas?: number | null
+  totalCostos?: number | null
+  totalMargen?: number | null
 }
 
 function inDateRange(row: Record<string, unknown>, desde: string, hasta: string): boolean {
@@ -35,29 +39,89 @@ function inDateRange(row: Record<string, unknown>, desde: string, hasta: string)
   } catch { return true }
 }
 
-export default function Dashboard({ data, projections, onLogout, onDownload, isAdmin, filename, updatedAt }: Props) {
+export default function Dashboard({
+  data, projections, onLogout, filename, updatedAt,
+  totalVentas, totalCostos, totalMargen,
+}: Props) {
   const [filters, setFilters] = useState<Filters>({
-    tipo: '', ciudad: '', depto: '', cliente: '', desde: '', hasta: '',
+    empresa: [], tipo: [], ciudad: [], depto: [], clientes: [], desde: '', hasta: '',
   })
 
   const filtered = useMemo(() => {
     return data.filter(row => {
-      if (filters.tipo    && String(row.tipo                 ?? '') !== filters.tipo)    return false
-      if (filters.ciudad  && String(row.ciudad               ?? '') !== filters.ciudad)  return false
-      if (filters.depto   && String(row.departamento_limpio  ?? '') !== filters.depto)   return false
-      if (filters.cliente && String(row.cliente              ?? '') !== filters.cliente) return false
-      if (!inDateRange(row, filters.desde, filters.hasta))                               return false
+      if (filters.empresa.length  > 0 && !filters.empresa.includes(String(row.empresa              ?? ''))) return false
+      if (filters.tipo.length     > 0 && !filters.tipo.includes(String(row.tipo                    ?? ''))) return false
+      if (filters.ciudad.length   > 0 && !filters.ciudad.includes(String(row.ciudad               ?? ''))) return false
+      if (filters.depto.length    > 0 && !filters.depto.includes(String(row.departamento_limpio   ?? ''))) return false
+      if (filters.clientes.length > 0 && !filters.clientes.includes(String(row.cliente            ?? ''))) return false
+      if (!inDateRange(row, filters.desde, filters.hasta))                                                  return false
       return true
     })
   }, [data, filters])
 
-  const ventas  = useMemo(() => filtered.reduce((s, r) => s + Number(r.total_venta_real ?? 0), 0), [filtered])
-  const costos  = useMemo(() => filtered.reduce((s, r) => s + Number(r.costos          ?? 0), 0), [filtered])
-  const margen  = ventas - costos
-  const rentab  = ventas > 0 ? (margen / ventas) * 100 : 0
+  // Si no hay filtros activos y el servidor envió totales pre-calculados, úsalos
+  // (evita el error de acumulación de punto flotante en 2.600+ filas)
+  const noFilters = useMemo(() =>
+    filters.empresa.length  === 0 && filters.tipo.length  === 0 &&
+    filters.ciudad.length   === 0 && filters.depto.length === 0 &&
+    filters.clientes.length === 0 && !filters.desde && !filters.hasta,
+  [filters])
 
-  const handleLogout  = useCallback(onLogout,  [onLogout])
-  const handleDownload = useCallback(onDownload, [onDownload])
+  const ventasSum = useMemo(() => filtered.reduce((s, r) => s + Number(r.total_venta_real ?? 0), 0), [filtered])
+  const costosSum = useMemo(() => filtered.reduce((s, r) => s + Number(r.costos          ?? 0), 0), [filtered])
+
+  const ventas = noFilters && totalVentas != null ? totalVentas : ventasSum
+  const costos = noFilters && totalCostos != null ? totalCostos : costosSum
+  const margen = noFilters && totalMargen != null ? totalMargen : ventas - costos
+  const rentab = ventas > 0 ? (margen / ventas) * 100 : 0
+
+  const router      = useRouter()
+  const contentRef  = useRef<HTMLDivElement>(null)
+  const chartRef1   = useRef<HTMLDivElement>(null)  // Tendencia
+  const chartRef2   = useRef<HTMLDivElement>(null)  // Donut
+  const chartRef3   = useRef<HTMLDivElement>(null)  // Cuentas especiales
+  const chartRef4   = useRef<HTMLDivElement>(null)  // Top clientes
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  const handleDownloadPDF = useCallback(async () => {
+    if (pdfLoading || filtered.length === 0) return
+    setPdfLoading(true)
+    try {
+      const activeFilters = [
+        ...filters.empresa, ...filters.tipo, ...filters.ciudad,
+        ...filters.depto, ...filters.clientes,
+        ...(filters.desde ? [`desde ${filters.desde}`] : []),
+        ...(filters.hasta ? [`hasta ${filters.hasta}`] : []),
+      ]
+      const filtersStr = activeFilters.length
+        ? activeFilters.slice(0, 6).join(' · ') + (activeFilters.length > 6 ? ' …' : '')
+        : 'Sin filtros — datos completos'
+      const dateStr = new Date().toLocaleDateString('es-EC', { day:'2-digit', month:'short', year:'numeric' })
+
+      await downloadDashboardPDF({
+        filename: `paradais-ventas-${new Date().toISOString().slice(0,10)}.pdf`,
+        title:    'Ventas & Costos',
+        filters:  filtersStr,
+        date:     dateStr,
+        kpis: [
+          { label: 'Ventas Totales',  value: fm(ventas), badge: 'Ingresos consolidados' },
+          { label: 'Costos Totales',  value: fm(costos), badge: 'Estructura de costos' },
+          { label: 'Utilidad Bruta',  value: fm(margen), badge: margen >= 0 ? 'Saludable ✓' : 'En riesgo' },
+          { label: '% Rentabilidad',  value: fp(rentab), badge: rentab >= 30 ? 'Óptimo ✓' : rentab >= 15 ? 'En alerta' : 'Crítico' },
+        ],
+        charts: [
+          { el: chartRef1.current, title: 'Tendencia Mensual · Ventas vs Costos vs Margen' },
+          { el: chartRef2.current, title: 'Participación por Departamento' },
+          { el: chartRef3.current, title: 'Cuentas Especiales' },
+          { el: chartRef4.current, title: 'Top 10 Clientes Privados' },
+        ],
+      })
+    } finally {
+      setPdfLoading(false)
+    }
+  }, [filtered.length, filters, ventas, costos, margen, rentab, pdfLoading])
+
+  const handleLogout = useCallback(onLogout, [onLogout])
 
   function fmtDate(iso?: string) {
     if (!iso) return ''
@@ -66,48 +130,64 @@ export default function Dashboard({ data, projections, onLogout, onDownload, isA
 
   return (
     <div className="min-h-screen bg-bg px-4 md:px-8 py-4">
+
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 mb-4 border-b-2 border-accent">
-        <div className="w-11 h-11 bg-black rounded-xl flex items-center justify-center flex-shrink-0">
-          <svg viewBox="0 0 44 44" fill="none" className="w-10 h-10">
-            <rect x="10" y="7"  width="6" height="13" rx="1" fill="#EAB308"/>
-            <path d="M16 7 H22 Q28 7 28 13.5 Q28 20 22 20 H16 Z" fill="#EAB308"/>
-            <rect x="10" y="22" width="6" height="15" rx="1" fill="#EAB308"/>
-            <path d="M16 22 H23 Q30 22 30 29.5 Q30 37 23 37 H16 Z" fill="#EAB308"/>
-          </svg>
-        </div>
+        <img src="/icon-192.png" alt="Paradais DDB" className="w-11 h-11 rounded-xl flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <h1 className="font-serif font-bold text-xl text-text-main leading-tight">Ventas &amp; Costos</h1>
           <p className="text-xs text-text-soft italic">Paradais DDB · Dashboard Ejecutivo</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded-full">
-            🟢 {filename ? `${filename}` : 'Conectado'}
+            🟢 En vivo
           </span>
           {updatedAt && (
             <span className="hidden md:inline text-[0.65rem] text-text-soft">
               Actualizado: {fmtDate(updatedAt)}
             </span>
           )}
-          <button onClick={handleDownload}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-accent text-text-main hover:bg-yellow-50 transition">
-            ⬇️ Excel
+          <button
+            onClick={handleDownloadPDF}
+            disabled={pdfLoading || filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface text-text-main border border-border hover:border-accent transition disabled:opacity-40"
+            title="Descargar PDF"
+          >
+            {pdfLoading
+              ? <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              : <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            }
+            <span className="hidden sm:inline">{pdfLoading ? 'Generando…' : 'PDF'}</span>
           </button>
-          {isAdmin && (
-            <button onClick={() => window.location.href = '/admin'}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-border text-text-main hover:bg-gray-50 transition">
-              🔑 Admin
-            </button>
-          )}
-          <button onClick={handleLogout}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-[#292524] transition">
-            🚪
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span className="hidden sm:inline">Salir</span>
           </button>
         </div>
       </div>
 
+      {/* Navegación entre dashboards */}
+      <div className="flex gap-2 mb-4">
+        <button className="px-4 py-1.5 text-xs font-semibold rounded-full bg-accent text-dark border border-accent">
+          📊 Ventas & Costos
+        </button>
+        <button
+          onClick={() => router.push('/medios')}
+          className="px-4 py-1.5 text-xs font-semibold rounded-full border border-border bg-card text-text-soft hover:bg-surface transition"
+        >
+          📡 Inversión Medios
+        </button>
+      </div>
+
       {/* Barra de filtros */}
-      <FilterBar data={data} filters={filters} onChange={setFilters} onLogout={handleLogout} isAdmin={isAdmin} />
+      <FilterBar data={data} filters={filters} onChange={setFilters} onLogout={handleLogout} />
 
       {filtered.length === 0 && (
         <div className="text-center py-16 text-text-soft">
@@ -135,20 +215,20 @@ export default function Dashboard({ data, projections, onLogout, onDownload, isA
 
           {/* Gráficos centrales */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <div ref={chartRef1} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📈 Tendencia Mensual · Ventas vs Costos vs Margen</p>
               <TrendChart data={filtered} />
             </div>
-            <div className="bg-white rounded-2xl border border-border p-4 shadow-card">
-              <p className="text-sm font-bold text-text-main mb-3">🍩 Participación por Departamento</p>
+            <div ref={chartRef2} className="bg-card rounded-2xl border border-border p-4">
+              <p className="text-sm font-bold text-text-main mb-3">📊 Participación por Departamento</p>
               <DonutChart data={filtered} total={ventas} />
             </div>
           </div>
 
           {/* Sección inferior */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <SpecialAccounts data={filtered} projections={projections} />
-            <div className="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <div ref={chartRef3}><SpecialAccounts data={filtered} projections={projections} /></div>
+            <div ref={chartRef4} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">
                 📊 Top 10 Clientes Privados{' '}
                 <span className="text-xs font-normal text-text-soft">(excl. cuentas especiales)</span>
@@ -157,44 +237,6 @@ export default function Dashboard({ data, projections, onLogout, onDownload, isA
             </div>
           </div>
 
-          {/* Tabla expandible */}
-          <details className="bg-white rounded-2xl border border-border shadow-card">
-            <summary className="px-5 py-4 cursor-pointer text-sm font-bold text-text-main select-none">
-              📋 Ver datos filtrados ({filtered.length.toLocaleString()} registros)
-            </summary>
-            <div className="overflow-x-auto px-4 pb-4">
-              <table className="w-full text-xs text-text-main border-collapse">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-border">
-                    {['Fecha','Cliente','Departamento','Tipo','Ciudad','Ventas','Costos','Margen','Rentab%','Mes'].map(h => (
-                      <th key={h} className="text-left px-2 py-2 font-semibold text-text-soft whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.slice(0, 500).map((row, i) => (
-                    <tr key={i} className="border-b border-border/50 hover:bg-stone-50">
-                      <td className="px-2 py-1.5 whitespace-nowrap">{String(row.fecha ?? '').split('T')[0]}</td>
-                      <td className="px-2 py-1.5 max-w-[160px] truncate">{String(row.cliente ?? '')}</td>
-                      <td className="px-2 py-1.5">{String(row.departamento_limpio ?? '')}</td>
-                      <td className="px-2 py-1.5">{String(row.tipo ?? '')}</td>
-                      <td className="px-2 py-1.5">{String(row.ciudad ?? '') || '—'}</td>
-                      <td className="px-2 py-1.5 text-right">{fm(Number(row.total_venta_real ?? 0))}</td>
-                      <td className="px-2 py-1.5 text-right">{fm(Number(row.costos          ?? 0))}</td>
-                      <td className="px-2 py-1.5 text-right">{fm(Number(row.margen          ?? 0))}</td>
-                      <td className="px-2 py-1.5 text-right">{fp(Number(row.rentabilidad_pct ?? 0))}</td>
-                      <td className="px-2 py-1.5">{String(row.mes ?? '')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filtered.length > 500 && (
-                <p className="text-xs text-text-soft text-center py-2">
-                  Mostrando primeros 500 de {filtered.length.toLocaleString()} registros
-                </p>
-              )}
-            </div>
-          </details>
         </>
       )}
     </div>

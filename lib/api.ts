@@ -22,12 +22,15 @@ api.interceptors.response.use(
 )
 
 export interface DashboardData {
-  data:        Record<string, unknown>[] | null
-  projections: Record<string, number>
-  filename:    string
-  row_count:   number
-  updated_at:  string
-  message?:    string
+  data:         Record<string, unknown>[] | null
+  projections:  Record<string, number>
+  filename:     string
+  row_count:    number
+  updated_at:   string
+  total_ventas?: number | null
+  total_costos?: number | null
+  total_margen?: number | null
+  message?:     string
 }
 
 export interface LoginResponse {
@@ -42,6 +45,18 @@ export async function login(password: string): Promise<LoginResponse> {
 
 export async function getData(): Promise<DashboardData> {
   const res = await api.get<DashboardData>('/api/data')
+  return res.data
+}
+
+export interface MediosData {
+  data:       Record<string, unknown>[] | null
+  row_count:  number
+  updated_at: string
+  filename:   string
+}
+
+export async function getMediosData(): Promise<MediosData> {
+  const res = await api.get<MediosData>('/api/medios-data')
   return res.data
 }
 

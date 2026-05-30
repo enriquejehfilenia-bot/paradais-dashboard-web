@@ -1,26 +1,10 @@
 /** @type {import('next').NextConfig} */
-const ALLOWED_ORIGINS = [
-  'https://paradaisddb-ventas-medios.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:8000',
-  'http://localhost:8765',
-]
+// Nota: CORS dinámico manejado en middleware.ts (soporta múltiples orígenes correctamente)
 
 const nextConfig = {
   reactStrictMode: true,
   async headers() {
     return [
-      // CORS — solo rutas de API
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin',      value: ALLOWED_ORIGINS.join(', ') },
-          { key: 'Access-Control-Allow-Methods',     value: 'GET, POST, PATCH, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers',     value: 'Content-Type, Authorization' },
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-        ],
-      },
       // Headers de seguridad — todas las rutas
       {
         source: '/(.*)',

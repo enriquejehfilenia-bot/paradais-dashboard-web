@@ -1,5 +1,5 @@
 const fm = (n: number) =>
-  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+  '$' + Math.round(n).toLocaleString('es-EC', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
 interface Props {
   label: string

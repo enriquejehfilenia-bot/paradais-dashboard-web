@@ -20,6 +20,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Desregistrar Service Workers viejos automáticamente */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            });
+          }
+        `}} />
       </head>
       <body>{children}</body>
     </html>

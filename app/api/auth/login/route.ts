@@ -24,15 +24,14 @@ export async function POST(req: NextRequest) {
   const { password } = body
   if (!password) return NextResponse.json({ error: 'Missing password' }, { status: 400 })
 
-  const hash      = sha256(password)
-  const adminHash = process.env.ADMIN_PASSWORD_HASH ?? ''
-  const userHash  = process.env.USER_PASSWORD_HASH  ?? ''
+  const hash       = sha256(password)
+  const adminHash  = process.env.ADMIN_PASSWORD_HASH  ?? process.env.USER_PASSWORD_HASH ?? ''
+  const mediosHash = process.env.MEDIOS_PASSWORD_HASH ?? ''
 
-  let role: 'admin' | 'user' | null = null
-  if (adminHash && hash === adminHash) role = 'admin'
-  else if (userHash && hash === userHash) role = 'user'
+  const isAdmin  = adminHash  !== '' && hash === adminHash
+  const isMedios = mediosHash !== '' && hash === mediosHash
 
-  if (!role) {
+  if (!isAdmin && !isMedios) {
     const cur   = rec ?? { count: 0, until: 0 }
     const count = cur.count + 1
     attempts.set(ip, { count, until: count >= 5 ? now + 5 * 60_000 : 0 })
@@ -40,10 +39,10 @@ export async function POST(req: NextRequest) {
   }
 
   attempts.delete(ip)
+  const role  = isAdmin ? 'admin' : 'medios'
   const token = await signToken(role)
 
   const res = NextResponse.json({ token, role })
-  res.cookies.set('pd_token', token,  { httpOnly: false, secure: true, sameSite: 'lax', maxAge: 8 * 3600, path: '/' })
-  res.cookies.set('pd_role',  role,   { httpOnly: false, secure: true, sameSite: 'lax', maxAge: 8 * 3600, path: '/' })
+  res.cookies.set('pd_token', token, { httpOnly: false, secure: true, sameSite: 'lax', maxAge: 8 * 3600, path: '/' })
   return res
 }
