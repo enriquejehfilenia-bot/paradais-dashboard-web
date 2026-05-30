@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import KPICard         from './KPICard'
 import FilterBar, { Filters } from './FilterBar'
@@ -18,7 +18,6 @@ interface Props {
   onLogout:    () => void
   filename?:   string
   updatedAt?:   string
-  // Pre-computed totals from server (exact, no float accumulation)
   totalVentas?: number | null
   totalCostos?: number | null
   totalMargen?: number | null
@@ -39,7 +38,7 @@ function inDateRange(row: Record<string, unknown>, desde: string, hasta: string)
 }
 
 export default function Dashboard({
-  data, projections, onLogout, filename, updatedAt,
+  data, projections, onLogout, updatedAt,
   totalVentas, totalCostos, totalMargen,
 }: Props) {
   const [filters, setFilters] = useState<Filters>({
@@ -48,18 +47,16 @@ export default function Dashboard({
 
   const filtered = useMemo(() => {
     return data.filter(row => {
-      if (filters.empresa.length  > 0 && !filters.empresa.includes(String(row.empresa              ?? ''))) return false
-      if (filters.tipo.length     > 0 && !filters.tipo.includes(String(row.tipo                    ?? ''))) return false
-      if (filters.ciudad.length   > 0 && !filters.ciudad.includes(String(row.ciudad               ?? ''))) return false
-      if (filters.depto.length    > 0 && !filters.depto.includes(String(row.departamento_limpio   ?? ''))) return false
-      if (filters.clientes.length > 0 && !filters.clientes.includes(String(row.cliente            ?? ''))) return false
-      if (!inDateRange(row, filters.desde, filters.hasta))                                                  return false
+      if (filters.empresa.length  > 0 && !filters.empresa.includes(String(row.empresa             ?? ''))) return false
+      if (filters.tipo.length     > 0 && !filters.tipo.includes(String(row.tipo                   ?? ''))) return false
+      if (filters.ciudad.length   > 0 && !filters.ciudad.includes(String(row.ciudad              ?? ''))) return false
+      if (filters.depto.length    > 0 && !filters.depto.includes(String(row.departamento_limpio  ?? ''))) return false
+      if (filters.clientes.length > 0 && !filters.clientes.includes(String(row.cliente           ?? ''))) return false
+      if (!inDateRange(row, filters.desde, filters.hasta))                                                 return false
       return true
     })
   }, [data, filters])
 
-  // Si no hay filtros activos y el servidor envió totales pre-calculados, úsalos
-  // (evita el error de acumulación de punto flotante en 2.600+ filas)
   const noFilters = useMemo(() =>
     filters.empresa.length  === 0 && filters.tipo.length  === 0 &&
     filters.ciudad.length   === 0 && filters.depto.length === 0 &&
@@ -74,12 +71,7 @@ export default function Dashboard({
   const margen = noFilters && totalMargen != null ? totalMargen : ventas - costos
   const rentab = ventas > 0 ? (margen / ventas) * 100 : 0
 
-  const router      = useRouter()
-  const chartRef1   = useRef<HTMLDivElement>(null)  // Tendencia
-  const chartRef2   = useRef<HTMLDivElement>(null)  // Donut
-  const chartRef3   = useRef<HTMLDivElement>(null)  // Cuentas especiales
-  const chartRef4   = useRef<HTMLDivElement>(null)  // Top clientes
-
+  const router       = useRouter()
   const handleLogout = useCallback(onLogout, [onLogout])
 
   function fmtDate(iso?: string) {
@@ -162,11 +154,11 @@ export default function Dashboard({
 
           {/* Gráficos centrales */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div ref={chartRef1} className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📈 Tendencia Mensual · Ventas vs Costos vs Margen</p>
               <TrendChart data={filtered} />
             </div>
-            <div ref={chartRef2} className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📊 Participación por Departamento</p>
               <DonutChart data={filtered} total={ventas} />
             </div>
@@ -174,8 +166,8 @@ export default function Dashboard({
 
           {/* Sección inferior */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div ref={chartRef3}><SpecialAccounts data={filtered} projections={projections} /></div>
-            <div ref={chartRef4} className="bg-card rounded-2xl border border-border p-4">
+            <SpecialAccounts data={filtered} projections={projections} />
+            <div className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">
                 📊 Top 10 Clientes Privados{' '}
                 <span className="text-xs font-normal text-text-soft">(excl. cuentas especiales)</span>
@@ -183,7 +175,6 @@ export default function Dashboard({
               <TopClientsChart data={filtered} projections={projections} />
             </div>
           </div>
-
         </>
       )}
     </div>
