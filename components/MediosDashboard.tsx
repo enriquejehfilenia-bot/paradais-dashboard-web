@@ -1,7 +1,6 @@
 'use client'
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { downloadDashboardPDF } from '@/lib/downloadPDF'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, Legend,
@@ -307,51 +306,6 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
   }
 
   const handleLogout  = useCallback(onLogout, [onLogout])
-  const contentRef    = useRef<HTMLDivElement>(null)
-  const chartRef1     = useRef<HTMLDivElement>(null)  // Tendencia
-  const chartRef2     = useRef<HTMLDivElement>(null)  // Por Medio
-  const chartRef3     = useRef<HTMLDivElement>(null)  // Top Clientes
-  const chartRef4     = useRef<HTMLDivElement>(null)  // Top Proveedores
-  const chartRef5     = useRef<HTMLDivElement>(null)  // Donut Tipo Inversión
-  const [pdfLoading, setPdfLoading] = useState(false)
-
-  const handleDownloadPDF = useCallback(async () => {
-    if (pdfLoading || filtered.length === 0) return
-    setPdfLoading(true)
-    try {
-      const activeF = [
-        ...mesFilter, ...medioFilter, ...tipoFilter,
-        ...clienteFilter, ...provFilter, ...rsFilter,
-        ...catFilter, ...tcFilter,
-      ]
-      const filtersStr = activeF.length
-        ? activeF.slice(0, 6).join(' · ') + (activeF.length > 6 ? ' …' : '')
-        : 'Sin filtros — datos completos'
-      const dateStr = new Date().toLocaleDateString('es-EC', { day:'2-digit', month:'short', year:'numeric' })
-
-      await downloadDashboardPDF({
-        filename: `paradais-medios-${new Date().toISOString().slice(0,10)}.pdf`,
-        title:    'Inversión en Medios',
-        filters:  filtersStr,
-        date:     dateStr,
-        kpis: [
-          { label: 'Inv. Cliente',    value: fm(invCliente), badge: 'Valor facturado al cliente' },
-          { label: 'Inv. Bruta',      value: fm(invBruta),   badge: 'Consumo plataforma' },
-          { label: 'Comisión',        value: fm(comision),   badge: 'Comisión cliente' },
-          { label: 'Total Facturado', value: fm(totalFact),  badge: 'Total factura cliente' },
-        ],
-        charts: [
-          { el: chartRef1.current, title: 'Tendencia Mensual' },
-          { el: chartRef2.current, title: 'Inversión por Medio' },
-          { el: chartRef3.current, title: 'Top 10 Clientes' },
-          { el: chartRef4.current, title: 'Top 10 Proveedores' },
-          { el: chartRef5.current, title: 'Distribución por Tipo de Inversión' },
-        ],
-      })
-    } finally {
-      setPdfLoading(false)
-    }
-  }, [pdfLoading, filtered.length, mesFilter, medioFilter, tipoFilter, clienteFilter, provFilter, rsFilter, catFilter, tcFilter, invCliente, invBruta, comision, totalFact])
 
   const clearAll = () => {
     setMesFilter([]); setMedioFilter([]); setTipoFilter([]); setClienteFilter([])
@@ -392,18 +346,6 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
               Actualizado: {fmtDate(updatedAt)}
             </span>
           )}
-          <button
-            onClick={handleDownloadPDF}
-            disabled={pdfLoading || filtered.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface text-text-main border border-border hover:border-accent transition disabled:opacity-40"
-            title="Descargar PDF"
-          >
-            {pdfLoading
-              ? <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              : <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            }
-            <span className="hidden sm:inline">{pdfLoading ? 'Generando…' : 'PDF'}</span>
-          </button>
           <button onClick={handleLogout}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -584,7 +526,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           </div>
 
           {/* Tendencia mensual */}
-          <div ref={chartRef1} className="bg-card rounded-2xl border border-border p-4 mb-5">
+          <div className="bg-card rounded-2xl border border-border p-4 mb-5">
             <p className="text-sm font-bold text-text-main mb-3">📈 Tendencia Mensual · Inv. Cliente vs Bruta vs Comisión</p>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={tendencia} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
@@ -603,7 +545,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           {/* Ranking por Medio + Top Clientes */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
 
-            <div ref={chartRef2} className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📡 Inversión por Medio</p>
               <ResponsiveContainer width="100%" height={Math.max(200, byMedio.length * 40)}>
                 <BarChart data={byMedio} layout="vertical" margin={{ top: 2, right: 70, left: 8, bottom: 2 }}>
@@ -619,7 +561,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
               </ResponsiveContainer>
             </div>
 
-            <div ref={chartRef3} className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">🏆 Top 10 Clientes · Inv. Cliente</p>
               <ResponsiveContainer width="100%" height={Math.max(200, topClientesData.length * 40)}>
                 <BarChart data={topClientesData} layout="vertical" margin={{ top: 2, right: 70, left: 8, bottom: 2 }}>
@@ -636,7 +578,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
 
           {/* Top Proveedores */}
           {topProveedoresData.length > 0 && (
-            <div ref={chartRef4} className="bg-card rounded-2xl border border-border p-4 mb-5">
+            <div className="bg-card rounded-2xl border border-border p-4 mb-5">
               <p className="text-sm font-bold text-text-main mb-3">🏭 Top 10 Proveedores · Inv. Cliente</p>
               <ResponsiveContainer width="100%" height={Math.max(200, topProveedoresData.length * 40)}>
                 <BarChart data={topProveedoresData} layout="vertical" margin={{ top: 2, right: 80, left: 8, bottom: 2 }}>
@@ -654,7 +596,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           {/* Donut + Tabla */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
 
-            <div ref={chartRef5} className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📊 Distribución por Tipo de Inversión</p>
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
