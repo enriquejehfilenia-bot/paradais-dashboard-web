@@ -260,7 +260,7 @@ export async function downloadDashboardPDF(opts: PDFOptions): Promise<void> {
       const st  = pct >= 100 ? 'green' : pct >= 85 ? 'amber' : 'red'
       const sc  = st === 'green' ? PAL.green : st === 'amber' ? PAL.amber : PAL.red
       const bc  = st === 'green' ? PAL.greenBg : st === 'amber' ? PAL.amberBg : PAL.redBg
-      const ic  = st === 'green' ? '✓' : st === 'amber' ? '!' : '✕'
+      const ic  = st === 'green' ? 'OK' : st === 'amber' ? '~!' : 'X'
       const rh  = rowH - 2
       const rx  = x + 3, rw = w - 6
       // Fondo
@@ -358,7 +358,7 @@ export async function downloadDashboardPDF(opts: PDFOptions): Promise<void> {
   drawHeader(2, 2)
 
   pdf.setPage(2)
-  secTitle('⭐ Cuentas Especiales · Semáforos de Cumplimiento', mg, P2_TITLE_Y)
+  secTitle('Cuentas Especiales · Semaforos de Cumplimiento', mg, P2_TITLE_Y)
   secTitle('Top 10 Clientes Privados', COL2_X, P2_TITLE_Y)
 
   drawSemaforos(opts.specialAccounts ?? [], mg, P2_CARD_Y, COL_W, P2_CARD_H)
