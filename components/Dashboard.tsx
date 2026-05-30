@@ -1,13 +1,12 @@
 'use client'
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { downloadDashboardPDF } from '@/lib/downloadPDF'
 import KPICard         from './KPICard'
 import FilterBar, { Filters } from './FilterBar'
 import TrendChart      from './TrendChart'
 import DonutChart      from './DonutChart'
 import TopClientsChart from './TopClientsChart'
-import SpecialAccounts, { isEspecial, BP_RE } from './SpecialAccounts'
+import SpecialAccounts from './SpecialAccounts'
 
 const fm = (n: number) =>
   '$' + Math.round(n).toLocaleString('es-EC', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -76,91 +75,10 @@ export default function Dashboard({
   const rentab = ventas > 0 ? (margen / ventas) * 100 : 0
 
   const router      = useRouter()
-  const contentRef  = useRef<HTMLDivElement>(null)
   const chartRef1   = useRef<HTMLDivElement>(null)  // Tendencia
   const chartRef2   = useRef<HTMLDivElement>(null)  // Donut
   const chartRef3   = useRef<HTMLDivElement>(null)  // Cuentas especiales
   const chartRef4   = useRef<HTMLDivElement>(null)  // Top clientes
-  const [pdfLoading, setPdfLoading] = useState(false)
-
-  const handleDownloadPDF = useCallback(async () => {
-    if (pdfLoading || filtered.length === 0) return
-    setPdfLoading(true)
-    try {
-      const activeFilters = [
-        ...filters.empresa, ...filters.tipo, ...filters.ciudad,
-        ...filters.depto, ...filters.clientes,
-        ...(filters.desde ? [`desde ${filters.desde}`] : []),
-        ...(filters.hasta ? [`hasta ${filters.hasta}`] : []),
-      ]
-      const filtersStr = activeFilters.length
-        ? activeFilters.slice(0, 6).join(' · ') + (activeFilters.length > 6 ? ' …' : '')
-        : 'Sin filtros — datos completos'
-      const dateStr = new Date().toLocaleDateString('es-EC', { day:'2-digit', month:'short', year:'numeric' })
-
-      // Calcular semáforos de cuentas especiales para renderizado nativo en PDF
-      const SKIP_RE = /^(TOTAL|OTROS CLIENTES|SUBTOTAL|SUMA|GRAND TOTAL)/i
-      const normalize = (s: string) =>
-        s.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
-
-      const byClient: Record<string, number> = {}
-      for (const r of filtered) {
-        const cli  = String(r.cliente ?? '')
-        const tipo = String(r.tipo ?? '')
-        if (!isEspecial(cli, tipo)) continue
-        byClient[cli] = (byClient[cli] ?? 0) + Number(r.total_venta_real ?? 0)
-      }
-
-      const projEspeciales = Object.entries(projections).filter(([k]) => {
-        if (SKIP_RE.test(k.trim())) return false
-        return BP_RE.test(k)
-      })
-
-      const allLabels = new Set(projEspeciales.map(([k]) => normalize(k)))
-      const sinProy   = Object.entries(byClient)
-        .filter(([c]) => !Array.from(allLabels).some(pn => {
-          const cn = normalize(c)
-          return cn.includes(pn) || pn.includes(cn)
-        }))
-        .sort(([, a], [, b]) => b - a)
-
-      const specialAccounts = [
-        ...projEspeciales
-          .sort(([, a], [, b]) => b - a)
-          .map(([projCliente, meta]) => {
-            const pn       = normalize(projCliente)
-            const realKey  = Object.keys(byClient).find(c => {
-              const cn = normalize(c)
-              return cn.includes(pn) || pn.includes(cn)
-            })
-            return { label: projCliente, real: byClient[realKey ?? ''] ?? 0, meta }
-          }),
-        ...sinProy.map(([cliente, real]) => ({ label: cliente, real, meta: 0 })),
-      ]
-
-      await downloadDashboardPDF({
-        filename:        `paradais-ventas-${new Date().toISOString().slice(0,10)}.pdf`,
-        title:           'Ventas & Costos',
-        filters:         filtersStr,
-        date:            dateStr,
-        kpis: [
-          { label: 'Ventas Totales',  value: fm(ventas), badge: 'Ingresos consolidados' },
-          { label: 'Costos Totales',  value: fm(costos), badge: 'Estructura de costos' },
-          { label: 'Utilidad Bruta',  value: fm(margen), badge: margen >= 0 ? 'Saludable ✓' : 'En riesgo',     badgeType: margen >= 0 ? 'green' : 'red' },
-          { label: '% Rentabilidad',  value: fp(rentab), badge: rentab >= 30 ? 'Óptimo ✓' : rentab >= 15 ? 'En alerta' : 'Crítico', badgeType: rentab >= 30 ? 'green' : rentab >= 15 ? 'amber' : 'red' },
-        ],
-        charts: [
-          { el: chartRef1.current, title: 'Tendencia Mensual · Ventas vs Costos vs Margen' },
-          { el: chartRef2.current, title: 'Participación por Departamento' },
-          { el: chartRef3.current, title: 'Cuentas Especiales' },  // fallback captura
-          { el: chartRef4.current, title: 'Top 10 Clientes Privados' },
-        ],
-        specialAccounts,
-      })
-    } finally {
-      setPdfLoading(false)
-    }
-  }, [filtered, filters, projections, ventas, costos, margen, rentab, pdfLoading])
 
   const handleLogout = useCallback(onLogout, [onLogout])
 
@@ -188,18 +106,6 @@ export default function Dashboard({
               Actualizado: {fmtDate(updatedAt)}
             </span>
           )}
-          <button
-            onClick={handleDownloadPDF}
-            disabled={pdfLoading || filtered.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface text-text-main border border-border hover:border-accent transition disabled:opacity-40"
-            title="Descargar PDF"
-          >
-            {pdfLoading
-              ? <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              : <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            }
-            <span className="hidden sm:inline">{pdfLoading ? 'Generando…' : 'PDF'}</span>
-          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition"
