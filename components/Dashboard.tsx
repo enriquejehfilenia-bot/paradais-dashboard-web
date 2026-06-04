@@ -42,8 +42,11 @@ export default function Dashboard({
   totalVentas, totalCostos, totalMargen,
 }: Props) {
   const [filters, setFilters] = useState<Filters>({
-    empresa: [], tipo: [], ciudad: [], depto: [], clientes: [], desde: '', hasta: '',
+    empresa: [], tipo: [], ciudad: [], depto: [], clientes: [], mes: [], desde: '', hasta: '',
   })
+
+  const MESES_ORDER = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
+                       'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
 
   const filtered = useMemo(() => {
     return data.filter(row => {
@@ -52,6 +55,13 @@ export default function Dashboard({
       if (filters.ciudad.length   > 0 && !filters.ciudad.includes(String(row.ciudad              ?? ''))) return false
       if (filters.depto.length    > 0 && !filters.depto.includes(String(row.departamento_limpio  ?? ''))) return false
       if (filters.clientes.length > 0 && !filters.clientes.includes(String(row.cliente           ?? ''))) return false
+      if (filters.mes.length > 0) {
+        try {
+          const d = new Date(String(row.fecha ?? ''))
+          const nombreMes = MESES_ORDER[d.getMonth()] ?? ''
+          if (!filters.mes.includes(nombreMes)) return false
+        } catch { return false }
+      }
       if (!inDateRange(row, filters.desde, filters.hasta))                                                 return false
       return true
     })
@@ -60,7 +70,8 @@ export default function Dashboard({
   const noFilters = useMemo(() =>
     filters.empresa.length  === 0 && filters.tipo.length  === 0 &&
     filters.ciudad.length   === 0 && filters.depto.length === 0 &&
-    filters.clientes.length === 0 && !filters.desde && !filters.hasta,
+    filters.clientes.length === 0 && filters.mes.length   === 0 &&
+    !filters.desde && !filters.hasta,
   [filters])
 
   const ventasSum = useMemo(() => filtered.reduce((s, r) => s + Number(r.total_venta_real ?? 0), 0), [filtered])
