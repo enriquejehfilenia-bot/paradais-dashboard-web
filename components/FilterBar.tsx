@@ -41,7 +41,7 @@ function mesDesde(row: Record<string, unknown>): string | null {
   try {
     const d = new Date(raw)
     if (isNaN(d.getTime())) return null
-    return MESES_ORDER[d.getMonth()] ?? null
+    return MESES_ORDER[d.getUTCMonth()] ?? null
   } catch { return null }
 }
 

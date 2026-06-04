@@ -58,7 +58,7 @@ export default function Dashboard({
       if (filters.mes.length > 0) {
         try {
           const d = new Date(String(row.fecha ?? ''))
-          const nombreMes = MESES_ORDER[d.getMonth()] ?? ''
+          const nombreMes = MESES_ORDER[d.getUTCMonth()] ?? ''
           if (!filters.mes.includes(nombreMes)) return false
         } catch { return false }
       }
