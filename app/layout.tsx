@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title:       'Paradais DDB · Dashboard',
-  description: 'Dashboard Ejecutivo · Paradais DDB',
+  title:       'Paradais TBWA · Dashboard',
+  description: 'Dashboard Ejecutivo · Paradais TBWA',
   manifest:    '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Paradais DDB' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Paradais TBWA' },
 }
 
 export const viewport: Viewport = {
@@ -20,11 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        {/* Desregistrar Service Workers viejos automáticamente */}
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              regs.forEach(function(r) { r.unregister(); });
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js');
             });
           }
         `}} />

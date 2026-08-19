@@ -51,13 +51,13 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src="/icon-192.png" alt="Paradais DDB" className="w-20 h-20 rounded-2xl shadow-lg" />
+          <img src="/icon-192.png" alt="Paradais TBWA" className="w-20 h-20 rounded-2xl shadow-lg" />
         </div>
 
         {/* Card */}
         <div className="bg-card rounded-2xl shadow-xl p-8">
           <h1 className="text-2xl font-serif font-bold text-text-main text-center mb-1">
-            Paradais DDB
+            Paradais TBWA
           </h1>
           <p className="text-text-soft text-sm text-center mb-6">
             Dashboard Ejecutivo
@@ -101,7 +101,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-[#475569] text-xs mt-6">
-          © {new Date().getFullYear()} Paradais DDB · Todos los derechos reservados
+          © {new Date().getFullYear()} Paradais TBWA · Todos los derechos reservados
         </p>
       </div>
     </div>

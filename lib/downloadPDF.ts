@@ -1,5 +1,5 @@
 /**
- * PDF Paradais DDB — tema oscuro idéntico al dashboard.
+ * PDF Paradais TBWA — tema oscuro idéntico al dashboard.
  * Pág 1: Header + KPIs + Tendencia + Donut
  * Pág 2: Semáforos (nativo) + Top 10 Clientes
  *
@@ -120,7 +120,7 @@ export async function downloadDashboardPDF(opts: PDFOptions): Promise<void> {
     // Logo
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11)
     pdf.setTextColor(...PAL.text)
-    pdf.text('Paradais DDB', mg, 12.5)
+    pdf.text('Paradais TBWA', mg, 12.5)
     // Sep
     pdf.setDrawColor(...PAL.accent); pdf.setLineWidth(0.5)
     pdf.line(mg + 38, 4, mg + 38, 16)
@@ -141,7 +141,7 @@ export async function downloadDashboardPDF(opts: PDFOptions): Promise<void> {
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6)
     pdf.setTextColor(...PAL.soft)
     pdf.text(
-      `Paradais DDB  ·  ${opts.title}  ·  ${opts.date}  ·  Documento confidencial`,
+      `Paradais TBWA  ·  ${opts.title}  ·  ${opts.date}  ·  Documento confidencial`,
       W / 2, H - 3, { align: 'center' },
     )
   }

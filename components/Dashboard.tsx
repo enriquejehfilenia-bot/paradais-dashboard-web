@@ -95,10 +95,10 @@ export default function Dashboard({
 
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 mb-4 border-b-2 border-accent">
-        <img src="/icon-192.png" alt="Paradais DDB" className="w-11 h-11 rounded-xl flex-shrink-0" />
+        <img src="/icon-192.png" alt="Paradais TBWA" className="w-11 h-11 rounded-xl flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <h1 className="font-serif font-bold text-xl text-text-main leading-tight">Ventas &amp; Costos</h1>
-          <p className="text-xs text-text-soft italic">Paradais DDB · Dashboard Ejecutivo</p>
+          <p className="text-xs text-text-soft italic">Paradais TBWA · Dashboard Ejecutivo</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded-full">
