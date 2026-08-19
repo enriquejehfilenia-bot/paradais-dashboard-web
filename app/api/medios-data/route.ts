@@ -14,6 +14,7 @@ function getToken(req: NextRequest): string | null {
  * v1 (8 cols):  [mes_i, cli_i, med_i, ti_i, vc, ib, cc, tf]
  * v4 (10 cols): [mes_i, cli_i, med_i, ti_i, cat_i, tc_i, vc, ib, cc, tf]
  * v5 (12 cols): [mes_i, cli_i, med_i, ti_i, prov_i, rs_i, cat_i, tc_i, vc, ib, cc, tf]
+ * v6 (13 cols): [mes_i, cli_i, med_i, ti_i, prov_i, rs_i, cat_i, tc_i, gp_i, vc, ib, cc, tf]
  */
 function expand(payload: Record<string, unknown>) {
   const pm   = (payload.pm   as string[]) ?? []
@@ -24,24 +25,29 @@ function expand(payload: Record<string, unknown>) {
   const prs  = (payload.prs  as string[]) ?? []
   const pcat = (payload.pcat as string[]) ?? []
   const ptc  = (payload.ptc  as string[]) ?? []
+  const pgp  = (payload.pgp  as string[]) ?? []
   const r    = (payload.r    as number[][]) ?? []
 
   return r.map(row => {
     let mi: number, ci: number, mei: number, ti: number
-    let provi: number, rsi: number, cati: number, tci: number
+    let provi: number, rsi: number, cati: number, tci: number, gpi: number
     let vc: number, ib: number, cc: number, tf: number
 
-    if (row.length >= 12) {
+    if (row.length >= 13) {
+      // v6
+      ;[mi, ci, mei, ti, provi, rsi, cati, tci, gpi, vc, ib, cc, tf] = row
+    } else if (row.length >= 12) {
       // v5
       ;[mi, ci, mei, ti, provi, rsi, cati, tci, vc, ib, cc, tf] = row
+      gpi = -1
     } else if (row.length >= 10) {
       // v4
       ;[mi, ci, mei, ti, cati, tci, vc, ib, cc, tf] = row
-      provi = rsi = -1
+      provi = rsi = gpi = -1
     } else {
       // v1 backward compat
       ;[mi, ci, mei, ti, vc, ib, cc, tf] = row
-      provi = rsi = cati = tci = -1
+      provi = rsi = cati = tci = gpi = -1
     }
 
     return {
@@ -54,7 +60,7 @@ function expand(payload: Record<string, unknown>) {
       categoria:         pcat[cati] ?? '',
       tipo_compra:       ptc[tci]  ?? '',
       marca:             '',
-      grupo_publicitario:'',
+      grupo_publicitario:pgp[gpi]  ?? '',
       valor_cliente:     vc ?? 0,
       inversion_bruta:   ib ?? 0,
       comision_cliente:  cc ?? 0,
