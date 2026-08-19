@@ -11,7 +11,7 @@
  */
 import { gzip, gunzip } from 'zlib'
 import { promisify } from 'util'
-import { put, get, head } from '@vercel/blob'
+import { put, get } from '@vercel/blob'
 
 const gzipAsync   = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
@@ -27,8 +27,10 @@ export interface MediosStoredData {
 // así el runtime no tiene que rastrear URLs con hash que cambian por upload.
 const BLOB_PATHNAME = 'medios-data.json.gz'
 
+const CACHE_TTL_MS = 5 * 60_000 // 5 min: suficiente para no golpear Blob en cada request,
+                                  // corto para que una actualización del .bat se refleje pronto
 let memStore: MediosStoredData | null = null
-let memBlobEtag: string | null = null
+let memStoreAt = 0
 
 export async function compressMedios(data: MediosStoredData): Promise<string> {
   const json = JSON.stringify(data)
@@ -66,6 +68,7 @@ async function decompress(b64: string): Promise<MediosStoredData | null> {
 
 export async function saveMediosData(data: MediosStoredData) {
   memStore = data
+  memStoreAt = Date.now()
   console.log(`Medios saved: ${data.row_count} rows`)
 }
 
@@ -81,32 +84,31 @@ async function streamToString(stream: ReadableStream<Uint8Array>): Promise<strin
 }
 
 export async function getMediosData(): Promise<MediosStoredData | null> {
-  // 1. Cache en memoria de la instancia caliente — pero solo si el blob no
-  //    cambió desde que se cacheó (head() es liviano, solo trae metadata).
-  if (memStore) {
-    try {
-      const meta = await head(BLOB_PATHNAME)
-      if (meta.etag === memBlobEtag) return memStore
-    } catch {
-      return memStore // si falla el head, servimos lo que haya en memoria
-    }
-  }
+  // 1. Cache en memoria de la instancia caliente — sin round-trip de red mientras
+  //    esté vigente (TTL 5 min). Los datos solo cambian cuando Jehf corre
+  //    ACTUALIZAR MEDIOS.bat (manual, poco frecuente), así que no hace falta
+  //    re-chequear frescura en cada request — eso solo agrega latencia
+  //    (~300-1000ms) sin beneficio real. Al vencer el TTL, o en una instancia
+  //    fría nueva, se relee el Blob y se recogen los datos actualizados.
+  if (memStore && Date.now() - memStoreAt < CACHE_TTL_MS) return memStore
 
-  // 2. Blob store (fuente de verdad, se actualiza sin redeploy)
+  // 2. Blob store (fuente de verdad). useCache:true (default) deja que el
+  //    CDN de Blob sirva rápido en vez de forzar lectura desde origen.
   try {
-    const result = await get(BLOB_PATHNAME, { access: 'private', useCache: false })
+    const result = await get(BLOB_PATHNAME, { access: 'private' })
     if (result?.statusCode === 200) {
       const b64 = await streamToString(result.stream)
       const data = await decompress(b64)
       if (data) {
         memStore = data
-        memBlobEtag = result.blob.etag
+        memStoreAt = Date.now()
         console.log(`Medios loaded from Blob: ${data.row_count} rows`)
         return data
       }
     }
   } catch (e) {
     console.error('medios blob error:', e)
+    if (memStore) return memStore // TTL vencido pero Blob falló — mejor servir lo viejo que nada
   }
 
   // 3. Fallback legacy: env var vieja (por si el blob aún no se subió)
@@ -114,11 +116,11 @@ export async function getMediosData(): Promise<MediosStoredData | null> {
   if (envVal) {
     try {
       const data = await decompress(envVal)
-      if (data) { memStore = data; return data }
+      if (data) { memStore = data; memStoreAt = Date.now(); return data }
     } catch (e) {
       console.error('medios decompress error:', e)
     }
   }
 
-  return null
+  return memStore // último recurso: lo que haya, aunque esté vencido
 }
