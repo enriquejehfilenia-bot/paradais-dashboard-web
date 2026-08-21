@@ -1,6 +1,7 @@
 'use client'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import gsap from 'gsap'
 import KPICard         from './KPICard'
 import FilterBar, { Filters } from './FilterBar'
 import TrendChart      from './TrendChart'
@@ -85,6 +86,23 @@ export default function Dashboard({
   const router       = useRouter()
   const handleLogout = useCallback(onLogout, [onLogout])
 
+  // ── Transición GSAP de los gráficos al cambiar un filtro ─────────────────
+  const chartRefs = useRef<(HTMLDivElement | null)[]>([])
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    const els = chartRefs.current.filter((el): el is HTMLDivElement => el !== null)
+    if (els.length === 0) return
+    const mm = gsap.matchMedia()
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(els,
+        { autoAlpha: 0.5, y: 8 },
+        { autoAlpha: 1, y: 0, duration: 0.3, ease: 'power2.out', stagger: 0.05 },
+      )
+    })
+    return () => mm.revert()
+  }, [filtered])
+
   function fmtDate(iso?: string) {
     if (!iso) return ''
     try { return new Date(iso).toLocaleString('es-EC') } catch { return iso }
@@ -149,15 +167,15 @@ export default function Dashboard({
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <KPICard label="Ventas Totales"   value={fm(ventas)} badge="Ingresos consolidados" badgeType="neutral" />
-            <KPICard label="Costos Totales"   value={fm(costos)} badge="Estructura de costos"  badgeType="neutral" />
+            <KPICard label="Ventas Totales"   value={ventas} format={fm} index={0} badge="Ingresos consolidados" badgeType="neutral" />
+            <KPICard label="Costos Totales"   value={costos} format={fm} index={1} badge="Estructura de costos"  badgeType="neutral" />
             <KPICard
-              label="Utilidad Bruta" value={fm(margen)}
+              label="Utilidad Bruta" value={margen} format={fm} index={2}
               badge={margen >= 0 ? 'Saludable ✓' : 'En riesgo'}
               badgeType={margen >= 0 ? 'green' : 'red'}
             />
             <KPICard
-              label="% Rentabilidad" value={fp(rentab)}
+              label="% Rentabilidad" value={rentab} format={fp} index={3}
               badge={rentab >= 30 ? 'Óptimo ✓' : rentab >= 15 ? 'En alerta' : 'Crítico'}
               badgeType={rentab >= 30 ? 'green' : rentab >= 15 ? 'amber' : 'red'}
             />
@@ -165,11 +183,11 @@ export default function Dashboard({
 
           {/* Gráficos centrales */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div ref={el => { chartRefs.current[0] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📈 Tendencia Mensual · Ventas vs Costos vs Margen</p>
               <TrendChart data={filtered} />
             </div>
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div ref={el => { chartRefs.current[1] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📊 Participación por Departamento</p>
               <DonutChart data={filtered} total={ventas} />
             </div>
@@ -177,8 +195,10 @@ export default function Dashboard({
 
           {/* Sección inferior */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <SpecialAccounts data={filtered} projections={projections} />
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div ref={el => { chartRefs.current[2] = el }}>
+              <SpecialAccounts data={filtered} projections={projections} />
+            </div>
+            <div ref={el => { chartRefs.current[3] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">
                 📊 Top 10 Clientes Privados{' '}
                 <span className="text-xs font-normal text-text-soft">(excl. cuentas especiales)</span>
