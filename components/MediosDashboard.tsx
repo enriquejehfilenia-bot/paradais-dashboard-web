@@ -157,12 +157,47 @@ function MultiSelect({
 }
 
 // ── KPI card ─────────────────────────────────────────────────────────────
-function KPI({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+// Cuenta ascendente suave hacia `target` cada vez que cambia (ej. al filtrar).
+function useCountUp(target: number, duration = 400) {
+  const [display, setDisplay] = useState(target)
+  const prevRef = useRef(target)
+  useEffect(() => {
+    const from = prevRef.current
+    const to = target
+    if (from === to) return
+    const start = performance.now()
+    let raf = 0
+    const step = (now: number) => {
+      const p = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setDisplay(from + (to - from) * eased)
+      if (p < 1) raf = requestAnimationFrame(step)
+      else prevRef.current = to
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return display
+}
+
+function KPI({
+  label, value, sub, color, index = 0, format,
+}: {
+  label: string; value: number; sub?: string; color?: string; index?: number
+  format?: (n: number) => string
+}) {
+  const shown = useCountUp(value)
+  const text = (format ?? ((n: number) => String(Math.round(n))))(shown)
   return (
-    <div className="bg-card rounded-2xl border border-border p-4 relative overflow-hidden">
+    <div
+      className="bg-card rounded-2xl border border-border p-4 relative overflow-hidden animate-fade-up
+        transition-[transform,background-color] duration-150 ease-[cubic-bezier(0.2,0,0,1)]
+        hover:-translate-y-0.5 hover:bg-[#211E1B]"
+      style={{ animationDelay: `${index * 40}ms` }}
+    >
       <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl ${color ?? 'bg-accent'}`} />
       <p className="text-xs font-semibold text-text-soft mb-1">{label}</p>
-      <p className="text-xl font-bold font-serif text-text-main leading-tight">{value}</p>
+      <p className="text-xl font-bold font-serif text-text-main leading-tight tabular-nums">{text}</p>
       {sub && <p className="text-[0.65rem] text-text-soft mt-1">{sub}</p>}
     </div>
   )
@@ -439,7 +474,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
         </div>
 
         {/* Dropdowns multiselect */}
-        <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex flex-wrap gap-3 items-end animate-fade-up">
           <MultiSelect label="Medio"          options={medios}      selected={medioFilter}   onChange={setMedioFilter} />
           <MultiSelect label="Tipo Inversión" options={tipos}       selected={tipoFilter}    onChange={setTipoFilter} />
           <MultiSelect label="Cliente"        options={clientes}    selected={clienteFilter} onChange={setClienteFilter} />
@@ -525,16 +560,16 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
         <>
           {/* KPIs principales */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-            <KPI label="Inv. Cliente"    value={fm(invCliente)} sub="Valor facturado al cliente"    color="bg-accent" />
-            <KPI label="Inv. Bruta"      value={fm(invBruta)}   sub="Consumo plataforma proveedor"  color="bg-indigo-400" />
-            <KPI label="Comisión"        value={fm(comision)}   sub="Comisión cliente"              color="bg-emerald-400" />
-            <KPI label="Total Facturado" value={fm(totalFact)}  sub="Total factura cliente"         color="bg-amber-400" />
+            <KPI label="Inv. Cliente"    value={invCliente} format={fm} index={0} sub="Valor facturado al cliente"    color="bg-accent" />
+            <KPI label="Inv. Bruta"      value={invBruta}   format={fm} index={1} sub="Consumo plataforma proveedor"  color="bg-indigo-400" />
+            <KPI label="Comisión"        value={comision}   format={fm} index={2} sub="Comisión cliente"              color="bg-emerald-400" />
+            <KPI label="Total Facturado" value={totalFact}  format={fm} index={3} sub="Total factura cliente"         color="bg-amber-400" />
           </div>
 
           {/* KPIs contadores */}
           <div className="grid grid-cols-2 md:grid-cols-2 gap-3 mb-5">
-            <KPI label="Clientes Activos" value={String(numClientes)} color="bg-slate-300" />
-            <KPI label="Medios"           value={String(numMedios)}   color="bg-slate-300" />
+            <KPI label="Clientes Activos" value={numClientes} index={4} color="bg-slate-300" />
+            <KPI label="Medios"           value={numMedios}   index={5} color="bg-slate-300" />
           </div>
 
           {/* Tendencia mensual */}
