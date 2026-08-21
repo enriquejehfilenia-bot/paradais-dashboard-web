@@ -38,6 +38,7 @@ interface MediosRow {
   tipo_compra: string
   marca: string
   grupo_publicitario: string
+  pulso: string
   valor_cliente: number
   inversion_bruta: number
   comision_cliente: number
@@ -196,6 +197,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
   const [medioFilter,   setMedioFilter]   = useState<string[]>([])
   const [tipoFilter,    setTipoFilter]    = useState<string[]>([])
   const [clienteFilter, setClienteFilter] = useState<string[]>([])
+  const [pulsoFilter,   setPulsoFilter]   = useState<string[]>([])
   const [provFilter,    setProvFilter]    = useState<string[]>([])
   const [rsFilter,      setRsFilter]      = useState<string[]>([])
   const [catFilter,     setCatFilter]     = useState<string[]>([])
@@ -209,6 +211,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
     Object.entries(data.reduce((acc, r) => { acc[r.cliente] = (acc[r.cliente] ?? 0) + r.valor_cliente; return acc }, {} as Record<string,number>))
       .sort(([,a],[,b]) => b - a).map(([c]) => c)
   , [data])
+  const pulsos       = useMemo(() => [...new Set(data.map(r => r.pulso).filter(Boolean))].sort(), [data])
   const proveedores = useMemo(() => [...new Set(data.map(r => r.proveedor).filter(Boolean))].sort(), [data])
   const razones     = useMemo(() => [...new Set(data.map(r => r.razon_social).filter(Boolean))].sort(), [data])
   const categorias  = useMemo(() => [...new Set(data.map(r => r.categoria).filter(Boolean))].sort(), [data])
@@ -220,17 +223,18 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
     if (medioFilter.length   > 0 && !medioFilter.includes(r.medio))         return false
     if (tipoFilter.length    > 0 && !tipoFilter.includes(r.tipo_inversion)) return false
     if (clienteFilter.length > 0 && !clienteFilter.includes(r.cliente))     return false
+    if (pulsoFilter.length   > 0 && !pulsoFilter.includes(r.pulso))         return false
     if (provFilter.length    > 0 && !provFilter.includes(r.proveedor))      return false
     if (rsFilter.length      > 0 && !rsFilter.includes(r.razon_social))     return false
     if (catFilter.length     > 0 && !catFilter.includes(r.categoria))       return false
     if (tcFilter.length      > 0 && !tcFilter.includes(r.tipo_compra))      return false
     return true
-  }), [data, mesFilter, medioFilter, tipoFilter, clienteFilter, provFilter, rsFilter, catFilter, tcFilter])
+  }), [data, mesFilter, medioFilter, tipoFilter, clienteFilter, pulsoFilter, provFilter, rsFilter, catFilter, tcFilter])
 
-  const hasFilter = [mesFilter, medioFilter, tipoFilter, clienteFilter, provFilter, rsFilter, catFilter, tcFilter]
+  const hasFilter = [mesFilter, medioFilter, tipoFilter, clienteFilter, pulsoFilter, provFilter, rsFilter, catFilter, tcFilter]
     .some(f => f.length > 0)
 
-  const activeCount = [mesFilter, medioFilter, tipoFilter, clienteFilter, provFilter, rsFilter, catFilter, tcFilter]
+  const activeCount = [mesFilter, medioFilter, tipoFilter, clienteFilter, pulsoFilter, provFilter, rsFilter, catFilter, tcFilter]
     .reduce((s, f) => s + (f.length > 0 ? 1 : 0), 0)
 
   // ── KPIs ────────────────────────────────────────────────────────────────
@@ -309,6 +313,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
 
   const clearAll = () => {
     setMesFilter([]); setMedioFilter([]); setTipoFilter([]); setClienteFilter([])
+    setPulsoFilter([])
     setProvFilter([]); setRsFilter([])
     setCatFilter([]); setTcFilter([])
   }
@@ -438,6 +443,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           <MultiSelect label="Medio"          options={medios}      selected={medioFilter}   onChange={setMedioFilter} />
           <MultiSelect label="Tipo Inversión" options={tipos}       selected={tipoFilter}    onChange={setTipoFilter} />
           <MultiSelect label="Cliente"        options={clientes}    selected={clienteFilter} onChange={setClienteFilter} />
+          {pulsos.length      > 0 && <MultiSelect label="Pulso"        options={pulsos}      selected={pulsoFilter}   onChange={setPulsoFilter} />}
           {proveedores.length > 0 && <MultiSelect label="Proveedor"    options={proveedores} selected={provFilter}    onChange={setProvFilter} />}
           {razones.length     > 0 && <MultiSelect label="Razón Social" options={razones}     selected={rsFilter}      onChange={setRsFilter} />}
           {categorias.length  > 0 && <MultiSelect label="Categoría"   options={categorias}  selected={catFilter}     onChange={setCatFilter} />}
@@ -469,6 +475,12 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
               <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-900/30 border border-amber-700 rounded-full text-[0.6rem] font-semibold text-amber-300">
                 👤 {v.slice(0,20)}
                 <button onClick={() => setClienteFilter(p => p.filter(x => x !== v))} className="hover:text-red-600">×</button>
+              </span>
+            ))}
+            {pulsoFilter.map(v => (
+              <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-fuchsia-900/30 border border-fuchsia-700 rounded-full text-[0.6rem] font-semibold text-fuchsia-300">
+                💓 {v.slice(0,20)}
+                <button onClick={() => setPulsoFilter(p => p.filter(x => x !== v))} className="hover:text-red-600">×</button>
               </span>
             ))}
             {provFilter.map(v => (

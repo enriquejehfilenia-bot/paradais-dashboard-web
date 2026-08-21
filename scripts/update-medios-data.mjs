@@ -123,9 +123,9 @@ console.log(`🏢 Razones Sociales únicas: ${Object.keys(rsFreq).length} → po
 // Pools de strings (se almacenan una sola vez)
 const poolMes = [], poolCli = [], poolMed = [], poolTi  = []
 const poolCat = [], poolTC  = [], poolProv = [], poolRS  = []
-const poolGP  = []
+const poolGP  = [], poolPulso = []
 
-// Filas v6: [mes_i, cli_i, med_i, ti_i, prov_i, rs_i, cat_i, tc_i, gp_i, vc, ib, cc, tf]
+// Filas v7: [mes_i, cli_i, med_i, ti_i, prov_i, rs_i, cat_i, tc_i, gp_i, pulso_i, vc, ib, cc, tf]
 const rows = []
 
 let skip = 0
@@ -141,6 +141,7 @@ for (const raw of rawRows) {
   const cat     = colStr(raw, 'categoria', 'category', 'categ').slice(0, 30)
   const tc      = colStr(raw, 'tipo de compra', 'tipo compra', 'tipo_compra', 'compra').slice(0, 30)
   const gp      = colStr(raw, 'grupo publicitario', 'grupo_publicitario').slice(0, 40)
+  const pulso   = colStr(raw, 'pulso').slice(0, 30)
 
   const provRaw = (colStr(raw, 'proveedor', 'provider', 'prov') || 'OTROS').slice(0, 50)
   // Nota: NO usar 'rs' como clave — coincide con "inve**rs**ion" de Tip Inversión (col B)
@@ -148,11 +149,12 @@ for (const raw of rawRows) {
   const prov    = topProv.has(provRaw) ? provRaw : 'OTROS'
   const rs      = topRS.has(rsRaw)     ? rsRaw   : 'OTROS'
 
-  // Nuevo libro (44 col, formato ledger): Valor Clte / Valor Proveedor / Val. Com. Cliente / Total.
-  // "valor clte" y "com. cliente" son substrings únicos (no chocan con %Com.Clte. ni Fact.Com.).
-  // "total" sí choca con "SubTotal" por substring → se resuelve por igualdad exacta primero.
-  const vc = r2(colNum(raw, 'valor cliente', 'valor_cliente', 'valor clte'))
-  const ib = r2(colNum(raw, 'inv. bruta', 'inv bruta', 'inversion bruta', 'consumo plataforma', 'valor proveedor'))
+  // Mapeo confirmado por Jehf (19-ago-2026): Inv. Cliente = col AM "Total",
+  // Inv. Bruta = col AD "SubTotal", Comisión = col AL "Val. Com. Cliente".
+  // "total" choca con "SubTotal" por substring → se resuelve por igualdad exacta.
+  // "com. cliente" y "subtotal" son substrings únicos (no chocan con %Com.Clte./Fact.Com.).
+  const vc = r2(colNumExact(raw, ['total'], ['valor cliente', 'valor_cliente', 'valor clte']))
+  const ib = r2(colNum(raw, 'subtotal', 'inv. bruta', 'inv bruta', 'inversion bruta', 'consumo plataforma'))
   const cc = r2(colNum(raw, '$ comision cliente', 'comision cliente', 'comision_cliente', 'com. cliente'))
   const tf = r2(colNumExact(raw, ['total'], ['total factura cliente', 'total factura', 'total_factura']))
 
@@ -168,13 +170,14 @@ for (const raw of rawRows) {
     idx(poolCat,  cat),
     idx(poolTC,   tc),
     idx(poolGP,   gp),
+    idx(poolPulso, pulso),
     vc, ib, cc, tf,
   ])
 }
 
 console.log(`✅ Registros: ${rows.length} (omitidos: ${skip})`)
 console.log(`🏷️  Pools — Meses: ${poolMes.length}, Clientes: ${poolCli.length}, Medios: ${poolMed.length}, TipoInv: ${poolTi.length}`)
-console.log(`   Proveedores: ${poolProv.length}, RS: ${poolRS.length}, Categorías: ${poolCat.length}, TipoCompra: ${poolTC.length}`)
+console.log(`   Proveedores: ${poolProv.length}, RS: ${poolRS.length}, Categorías: ${poolCat.length}, TipoCompra: ${poolTC.length}, Pulso: ${poolPulso.length}`)
 
 // Resumen
 const byMes = {}; const byMed = {}
@@ -185,15 +188,15 @@ for (const [mi,,mdi] of rows) {
 console.log('\n📊 Meses:', JSON.stringify(byMes))
 console.log('📊 Medios:', JSON.stringify(byMed))
 
-// v6: [mes_i, cli_i, med_i, ti_i, prov_i, rs_i, cat_i, tc_i, gp_i, vc=9, ib=10, cc=11, tf=12]
-const invCliente = rows.reduce((s,r) => s + r[9], 0)
-const comision   = rows.reduce((s,r) => s + r[11], 0)
-const totalFact  = rows.reduce((s,r) => s + r[12], 0)
+// v7: [mes_i, cli_i, med_i, ti_i, prov_i, rs_i, cat_i, tc_i, gp_i, pulso_i, vc=10, ib=11, cc=12, tf=13]
+const invCliente = rows.reduce((s,r) => s + r[10], 0)
+const comision   = rows.reduce((s,r) => s + r[12], 0)
+const totalFact  = rows.reduce((s,r) => s + r[13], 0)
 console.log(`\n💰 Inv. Cliente:  $${Math.round(invCliente).toLocaleString('es-EC')}`)
 console.log(`💰 Comisión:      $${Math.round(comision).toLocaleString('es-EC')}`)
 console.log(`💰 Total Factura: $${Math.round(totalFact).toLocaleString('es-EC')}`)
 
-// Formato columnar compacto v6
+// Formato columnar compacto v7
 const payload = {
   pm:   poolMes,
   pc:   poolCli,
@@ -204,6 +207,7 @@ const payload = {
   pcat: poolCat,
   ptc:  poolTC,
   pgp:  poolGP,
+  ppu:  poolPulso,
   r:    rows,
   rc:   rows.length,
   ua:   new Date().toISOString().slice(0, 10),
