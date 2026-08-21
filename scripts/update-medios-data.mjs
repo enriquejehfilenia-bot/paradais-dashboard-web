@@ -21,24 +21,31 @@ function nfd(s) {
 }
 function clean(s) { return String(s ?? '').replace(/\s+/g, ' ').trim() }
 
-function colNum(row, ...keys) {
+// Busca la columna: primero por NOMBRE EXACTO (evita que una clave corta como
+// 'prov' se cuelgue de "Cod. Prov." solo por aparecer antes que "Proveedor"),
+// y solo si no hay exacta cae a substring (para nombres de columna variables).
+function findCol(row, keys) {
   for (const k of Object.keys(row)) {
     const kl = nfd(k)
-    if (keys.some(key => kl.includes(nfd(key)))) {
-      const raw = row[k]
-      if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
-      const n = parseFloat(String(raw ?? '').replace(/[$,\s]/g, ''))
-      return isNaN(n) ? 0 : n
-    }
+    if (keys.some(key => kl === nfd(key))) return k
   }
-  return 0
+  for (const k of Object.keys(row)) {
+    const kl = nfd(k)
+    if (keys.some(key => kl.includes(nfd(key)))) return k
+  }
+  return null
+}
+function colNum(row, ...keys) {
+  const k = findCol(row, keys)
+  if (k === null) return 0
+  const raw = row[k]
+  if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
+  const n = parseFloat(String(raw ?? '').replace(/[$,\s]/g, ''))
+  return isNaN(n) ? 0 : n
 }
 function colStr(row, ...keys) {
-  for (const k of Object.keys(row)) {
-    const kl = nfd(k)
-    if (keys.some(key => kl.includes(nfd(key)))) return clean(row[k])
-  }
-  return ''
+  const k = findCol(row, keys)
+  return k === null ? '' : clean(row[k])
 }
 // Como colNum/colStr matchean por substring, columnas cortas como "Total" quedan
 // atrapadas por "SubTotal". colNumExact prueba igualdad exacta de nombre primero.
@@ -110,8 +117,8 @@ console.log(`📊 Filas brutas: ${rawRows.length}`)
 const CAP_POOL = 60
 const provFreq = {}, rsFreq = {}
 for (const raw of rawRows) {
-  const prov = (colStr(raw, 'proveedor', 'provider', 'prov') || 'OTROS').slice(0, 50)
-  const rs   = (colStr(raw, 'razon social', 'razon_social', 'r.social', 'rs') || 'OTROS').slice(0, 50)
+  const prov = (colStr(raw, 'proveedor', 'provider') || 'OTROS').slice(0, 50)
+  const rs   = (colStr(raw, 'razon social', 'razon_social', 'r.social') || 'OTROS').slice(0, 50)
   provFreq[prov] = (provFreq[prov] ?? 0) + 1
   rsFreq[rs]     = (rsFreq[rs]     ?? 0) + 1
 }
@@ -143,9 +150,9 @@ for (const raw of rawRows) {
   const gp      = colStr(raw, 'grupo publicitario', 'grupo_publicitario').slice(0, 40)
   const pulso   = colStr(raw, 'pulso').slice(0, 30)
 
-  const provRaw = (colStr(raw, 'proveedor', 'provider', 'prov') || 'OTROS').slice(0, 50)
+  const provRaw = (colStr(raw, 'proveedor', 'provider') || 'OTROS').slice(0, 50)
   // Nota: NO usar 'rs' como clave — coincide con "inve**rs**ion" de Tip Inversión (col B)
-  const rsRaw   = (colStr(raw, 'razon social', 'razon_social', 'r.social', 'razon') || 'OTROS').slice(0, 50)
+  const rsRaw   = (colStr(raw, 'razon social', 'razon_social', 'r.social') || 'OTROS').slice(0, 50)
   const prov    = topProv.has(provRaw) ? provRaw : 'OTROS'
   const rs      = topRS.has(rsRaw)     ? rsRaw   : 'OTROS'
 
