@@ -86,6 +86,23 @@ const wb = XLSX.read(new Uint8Array(buffer.buffer.slice(buffer.byteOffset, buffe
 const sheetName = wb.SheetNames.find(n => nfd(n).includes('inversion')) ?? wb.SheetNames[0]
 console.log(`📄 Leyendo hoja: "${sheetName}"`)
 const ws = wb.Sheets[sheetName]
+
+// Excel a veces infla el rango "usado" del sheet (ej. al hacer clic lejos de los
+// datos) sin agregar filas reales. sheet_to_json con defval confía en ese rango
+// y puede tardar minutos/colgarse si dice millones de filas. Se recorta al rango
+// real (última fila con alguna celda) antes de convertir.
+const declaredRange = XLSX.utils.decode_range(ws['!ref'])
+let lastRealRow = 0
+for (const addr of Object.keys(ws)) {
+  if (addr[0] === '!') continue
+  const r = XLSX.utils.decode_cell(addr).r
+  if (r > lastRealRow) lastRealRow = r
+}
+if (lastRealRow < declaredRange.e.r) {
+  console.log(`✂️  Rango declarado hasta fila ${declaredRange.e.r + 1}, datos reales hasta fila ${lastRealRow + 1} — recortando`)
+  ws['!ref'] = XLSX.utils.encode_range({ s: declaredRange.s, e: { r: lastRealRow, c: declaredRange.e.c } })
+}
+
 const rawRows = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' })
 console.log(`📊 Filas brutas: ${rawRows.length}`)
 
