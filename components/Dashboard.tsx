@@ -128,7 +128,7 @@ export default function Dashboard({
           )}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition"
+            className="press flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -147,7 +147,7 @@ export default function Dashboard({
         </button>
         <button
           onClick={() => router.push('/medios')}
-          className="px-4 py-1.5 text-xs font-semibold rounded-full border border-border bg-card text-text-soft hover:bg-surface transition"
+          className="press px-4 py-1.5 text-xs font-semibold rounded-full border border-border bg-card text-text-soft hover:bg-surface transition"
         >
           📡 Inversión Medios
         </button>

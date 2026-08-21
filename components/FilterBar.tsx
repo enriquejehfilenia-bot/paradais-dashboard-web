@@ -128,7 +128,7 @@ export default function FilterBar({ data, filters, onChange, onLogout: _onLogout
           <div className="flex flex-wrap gap-1">
             <button
               onClick={() => onChange({ ...filters, mes: [] })}
-              className={`px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
+              className={`press px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
                 filters.mes.length === 0
                   ? 'bg-accent border-accent text-dark'
                   : 'bg-card border-border text-text-soft hover:bg-surface'
@@ -140,7 +140,7 @@ export default function FilterBar({ data, filters, onChange, onLogout: _onLogout
               <button
                 key={m}
                 onClick={() => toggleMes(m)}
-                className={`px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
+                className={`press px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
                   filters.mes.includes(m)
                     ? 'bg-accent border-accent text-dark'
                     : 'bg-card border-border text-text-soft hover:bg-surface'

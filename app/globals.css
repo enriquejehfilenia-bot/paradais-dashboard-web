@@ -51,9 +51,29 @@ select.dark-select {
 select.dark-select:focus { outline: none; border-color: #EAB308; }
 
 /* Animación de entrada sutil — tarjetas KPI, filtros, etc.
-   Personalidad "Corporate" (dashboard ejecutivo): decelerado, sin rebote. */
+   Personalidad "Corporate" (dashboard ejecutivo): decelerado, sin rebote.
+   Curva ease-out con más punch que las nativas de CSS (criterio emil-design-eng). */
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.animate-fade-up { animation: fade-up 0.3s cubic-bezier(0.2,0,0,1) both; }
+.animate-fade-up { animation: fade-up 0.3s cubic-bezier(0.23,1,0.32,1) both; }
+
+/* Feedback de presión — todo elemento clickeable debe sentir que "escuchó" el click. */
+.press { transition: transform 150ms cubic-bezier(0.23,1,0.32,1); }
+.press:active { transform: scale(0.97); }
+
+/* Panel de dropdown (MultiSelect/Combobox) — siempre montado, se anima por clase
+   en vez de aparecer/desaparecer de golpe. Entra desde su origen (arriba-izquierda). */
+.dropdown-panel {
+  transform-origin: top left;
+  transition: opacity 160ms cubic-bezier(0.23,1,0.32,1), transform 160ms cubic-bezier(0.23,1,0.32,1);
+}
+.dropdown-panel[data-closed] {
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up { animation: none; }
+  .press:active { transform: none; }
+  .dropdown-panel, .dropdown-panel[data-closed] { transition: opacity 120ms ease; transform: none; }
 }

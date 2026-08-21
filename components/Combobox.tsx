@@ -113,34 +113,35 @@ export default function Combobox(props: Props) {
         )}
       </div>
 
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full max-h-52 overflow-y-auto bg-card border border-border rounded-lg shadow-2xl text-xs">
-          {!isMulti && (
-            <li onMouseDown={() => selectSingle('')}
-              className="px-3 py-2 cursor-pointer text-text-soft hover:bg-surface border-b border-border/50">
-              {placeholder}
+      <ul
+        className="dropdown-panel absolute z-50 mt-1 w-full max-h-52 overflow-y-auto bg-card border border-border rounded-lg shadow-2xl text-xs"
+        {...(!(open && filtered.length > 0) ? { 'data-closed': true } : {})}
+      >
+        {!isMulti && (
+          <li onMouseDown={() => selectSingle('')}
+            className="px-3 py-2 cursor-pointer text-text-soft hover:bg-surface border-b border-border/50">
+            {placeholder}
+          </li>
+        )}
+        {filtered.map(opt => {
+          const checked = isMulti && selected.includes(opt)
+          return (
+            <li key={opt}
+              onMouseDown={() => isMulti ? toggleMulti(opt) : selectSingle(opt)}
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-surface ${
+                checked || opt === singleVal ? 'bg-surface font-semibold' : ''
+              }`}>
+              {isMulti && (
+                <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center text-[0.55rem] font-bold
+                  ${checked ? 'bg-accent border-accent text-dark' : 'border-border'}`}>
+                  {checked ? '✓' : ''}
+                </span>
+              )}
+              <span className="truncate text-text-main">{opt}</span>
             </li>
-          )}
-          {filtered.map(opt => {
-            const checked = isMulti && selected.includes(opt)
-            return (
-              <li key={opt}
-                onMouseDown={() => isMulti ? toggleMulti(opt) : selectSingle(opt)}
-                className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-surface ${
-                  checked || opt === singleVal ? 'bg-surface font-semibold' : ''
-                }`}>
-                {isMulti && (
-                  <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center text-[0.55rem] font-bold
-                    ${checked ? 'bg-accent border-accent text-dark' : 'border-border'}`}>
-                    {checked ? '✓' : ''}
-                  </span>
-                )}
-                <span className="truncate text-text-main">{opt}</span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+          )
+        })}
+      </ul>
     </div>
   )
 }

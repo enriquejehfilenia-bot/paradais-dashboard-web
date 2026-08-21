@@ -58,6 +58,7 @@ function MultiSelect({
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -69,6 +70,8 @@ function MultiSelect({
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
+
+  useEffect(() => { if (open) searchRef.current?.focus() }, [open])
 
   const visible = useMemo(
     () => options.filter(o => !search || o.toLowerCase().includes(search.toLowerCase())),
@@ -91,7 +94,7 @@ function MultiSelect({
       <button
         type="button"
         onClick={() => setOpen(p => !p)}
-        className={`h-8 min-w-[110px] max-w-[190px] px-2.5 text-xs border rounded-lg bg-surface text-left flex items-center justify-between gap-1 transition focus:outline-none focus:ring-2 focus:ring-accent ${
+        className={`press h-8 min-w-[110px] max-w-[190px] px-2.5 text-xs border rounded-lg bg-surface text-left flex items-center justify-between gap-1 transition focus:outline-none focus:ring-2 focus:ring-accent ${
           active ? 'border-accent text-accent font-semibold' : 'border-border text-text-main hover:border-text-soft'
         }`}
       >
@@ -99,60 +102,61 @@ function MultiSelect({
         <span className="text-text-soft flex-shrink-0 text-[0.55rem] ml-1">{open ? '▲' : '▼'}</span>
       </button>
 
-      {open && (
-        <div className="absolute z-[60] top-full mt-1 left-0 w-64 bg-card border border-border rounded-xl shadow-2xl">
-          {/* Buscador */}
-          <div className="p-2 border-b border-border">
-            <input
-              autoFocus
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Escribir para buscar..."
-              className="w-full text-xs px-2.5 py-1.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+      <div
+        className="dropdown-panel absolute z-[60] top-full mt-1 left-0 w-64 bg-card border border-border rounded-xl shadow-2xl"
+        {...(!open ? { 'data-closed': true } : {})}
+      >
+        {/* Buscador */}
+        <div className="p-2 border-b border-border">
+          <input
+            ref={searchRef}
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Escribir para buscar..."
+            className="w-full text-xs px-2.5 py-1.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
 
-          {/* Lista */}
-          <div className="max-h-52 overflow-y-auto">
-            {active && (
-              <button
-                type="button"
-                onClick={() => { onChange([]); setSearch('') }}
-                className="w-full text-left px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 font-semibold border-b border-border"
-              >
-                ✕ Limpiar selección
-              </button>
-            )}
-            {visible.length === 0 && (
-              <p className="px-3 py-3 text-xs text-text-soft italic text-center">Sin resultados</p>
-            )}
-            {visible.map(opt => (
-              <label key={opt} className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-surface cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(opt)}
-                  onChange={() => toggle(opt)}
-                  className="accent-yellow-400 w-3.5 h-3.5 flex-shrink-0 cursor-pointer"
-                />
-                <span className="text-xs text-text-main truncate">{opt}</span>
-              </label>
+        {/* Lista */}
+        <div className="max-h-52 overflow-y-auto">
+          {active && (
+            <button
+              type="button"
+              onClick={() => { onChange([]); setSearch('') }}
+              className="press w-full text-left px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 font-semibold border-b border-border"
+            >
+              ✕ Limpiar selección
+            </button>
+          )}
+          {visible.length === 0 && (
+            <p className="px-3 py-3 text-xs text-text-soft italic text-center">Sin resultados</p>
+          )}
+          {visible.map(opt => (
+            <label key={opt} className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-surface cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={selected.includes(opt)}
+                onChange={() => toggle(opt)}
+                className="accent-yellow-400 w-3.5 h-3.5 flex-shrink-0 cursor-pointer"
+              />
+              <span className="text-xs text-text-main truncate">{opt}</span>
+            </label>
+          ))}
+        </div>
+
+        {/* Tags seleccionados */}
+        {active && (
+          <div className="p-2 border-t border-border flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+            {selected.map(s => (
+              <span key={s} className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-accent rounded-full text-[0.6rem] font-semibold text-dark">
+                <span className="max-w-[80px] truncate">{s}</span>
+                <button type="button" onClick={() => toggle(s)} className="hover:text-red-600 ml-0.5 leading-none">×</button>
+              </span>
             ))}
           </div>
-
-          {/* Tags seleccionados */}
-          {active && (
-            <div className="p-2 border-t border-border flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-              {selected.map(s => (
-                <span key={s} className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-accent rounded-full text-[0.6rem] font-semibold text-dark">
-                  <span className="max-w-[80px] truncate">{s}</span>
-                  <button type="button" onClick={() => toggle(s)} className="hover:text-red-600 ml-0.5 leading-none">×</button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -444,7 +448,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
             </span>
           )}
           <button onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition">
+            className="press flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-dark text-white hover:bg-red-700 transition">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
@@ -460,7 +464,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
         {userRole === 'admin' && (
           <button
             onClick={() => router.push('/dashboard')}
-            className="px-4 py-1.5 text-xs font-semibold rounded-full border border-border bg-card text-text-soft hover:bg-surface transition"
+            className="press px-4 py-1.5 text-xs font-semibold rounded-full border border-border bg-card text-text-soft hover:bg-surface transition"
           >
             📊 Ventas & Costos
           </button>
@@ -506,7 +510,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           <div className="flex flex-wrap gap-1">
             <button
               onClick={() => setMesFilter([])}
-              className={`px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
+              className={`press px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
                 mesFilter.length === 0
                   ? 'bg-accent border-accent text-dark'
                   : 'bg-card border-border text-text-soft hover:bg-surface'
@@ -518,7 +522,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
               <button
                 key={m}
                 onClick={() => toggleMes(m)}
-                className={`px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
+                className={`press px-2.5 py-1 text-[0.65rem] font-semibold rounded-full border transition ${
                   mesFilter.includes(m)
                     ? 'bg-accent border-accent text-dark'
                     : 'bg-card border-border text-text-soft hover:bg-surface'
@@ -607,7 +611,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
         <div className="text-center py-16 text-text-soft">
           <p className="text-4xl mb-3">🔍</p>
           <p className="text-lg">Sin resultados para los filtros seleccionados</p>
-          <button onClick={clearAll} className="mt-4 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-dark">
+          <button onClick={clearAll} className="press mt-4 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-dark">
             Limpiar filtros
           </button>
         </div>

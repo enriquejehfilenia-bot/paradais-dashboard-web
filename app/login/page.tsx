@@ -86,7 +86,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={bloqueado || loading || !pwd}
-              className="w-full py-3 rounded-lg font-semibold text-sm transition-all
+              className="press w-full py-3 rounded-lg font-semibold text-sm transition-all
                 bg-[#1C1917] text-white border border-accent
                 hover:bg-[#292524] disabled:opacity-50 disabled:cursor-not-allowed"
             >
