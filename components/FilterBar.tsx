@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import Combobox from './Combobox'
 
 export interface Filters {
@@ -48,19 +48,53 @@ function mesDesde(row: Record<string, unknown>): string | null {
 const inputCls = "dark-input w-full text-xs"
 const labelCls = "block text-[0.65rem] font-bold text-text-soft uppercase tracking-widest mb-1"
 
+type FilterKey = 'empresa'|'tipo'|'ciudad'|'depto'|'clientes'|'mes'
+
 export default function FilterBar({ data, filters, onChange, onLogout: _onLogout }: Props) {
-  const empresas = useMemo(() => unique(data, 'empresa'),             [data])
-  const tipos    = useMemo(() => unique(data, 'tipo'),                [data])
-  const ciudades = useMemo(() => unique(data, 'ciudad'),              [data])
-  const deptos   = useMemo(() => unique(data, 'departamento_limpio'), [data])
-  const clientes = useMemo(() => unique(data, 'cliente'),             [data])
+  // ── Filtro en cascada: cada dropdown se calcula aplicando todos los DEMÁS
+  // filtros activos (todos menos el propio), así nunca se arma una
+  // combinación sin datos — las opciones que ya no aplicarían desaparecen.
+  const filterExcept = useMemo(() => (except: FilterKey) => data.filter(r => {
+    if (except !== 'empresa'  && filters.empresa.length  > 0 && !filters.empresa.includes(String(r.empresa ?? '')))              return false
+    if (except !== 'tipo'     && filters.tipo.length     > 0 && !filters.tipo.includes(String(r.tipo ?? '')))                    return false
+    if (except !== 'ciudad'   && filters.ciudad.length   > 0 && !filters.ciudad.includes(String(r.ciudad ?? '')))                return false
+    if (except !== 'depto'    && filters.depto.length    > 0 && !filters.depto.includes(String(r.departamento_limpio ?? '')))    return false
+    if (except !== 'clientes' && filters.clientes.length > 0 && !filters.clientes.includes(String(r.cliente ?? '')))             return false
+    if (except !== 'mes'      && filters.mes.length      > 0 && !filters.mes.includes(mesDesde(r) ?? ''))                        return false
+    return true
+  }), [data, filters.empresa, filters.tipo, filters.ciudad, filters.depto, filters.clientes, filters.mes])
+
+  const empresas = useMemo(() => unique(filterExcept('empresa'),  'empresa'),             [filterExcept])
+  const tipos    = useMemo(() => unique(filterExcept('tipo'),     'tipo'),                [filterExcept])
+  const ciudades = useMemo(() => unique(filterExcept('ciudad'),   'ciudad'),              [filterExcept])
+  const deptos   = useMemo(() => unique(filterExcept('depto'),    'departamento_limpio'), [filterExcept])
+  const clientes = useMemo(() => unique(filterExcept('clientes'), 'cliente'),             [filterExcept])
 
   // Meses presentes en los datos, en orden cronológico
   const meses = useMemo(() => {
     const set = new Set<string>()
-    data.forEach(r => { const m = mesDesde(r); if (m) set.add(m) })
+    filterExcept('mes').forEach(r => { const m = mesDesde(r); if (m) set.add(m) })
     return MESES_ORDER.filter(m => set.has(m))
-  }, [data])
+  }, [filterExcept])
+
+  // Si un valor seleccionado deja de tener datos junto con los demás filtros
+  // activos, se quita solo. Compara por contenido para no disparar un
+  // onChange en cada render (evitaría loop infinito con el padre).
+  useEffect(() => {
+    const next: Filters = {
+      ...filters,
+      empresa:  filters.empresa.filter(v => empresas.includes(v)),
+      tipo:     filters.tipo.filter(v => tipos.includes(v)),
+      ciudad:   filters.ciudad.filter(v => ciudades.includes(v)),
+      depto:    filters.depto.filter(v => deptos.includes(v)),
+      clientes: filters.clientes.filter(v => clientes.includes(v)),
+      mes:      filters.mes.filter(v => meses.includes(v)),
+    }
+    const changed = (['empresa','tipo','ciudad','depto','clientes','mes'] as const)
+      .some(k => next[k].length !== filters[k].length)
+    if (changed) onChange(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresas, tipos, ciudades, deptos, clientes, meses])
 
   const setDate = (k: 'desde' | 'hasta') =>
     (e: React.ChangeEvent<HTMLInputElement>) =>

@@ -239,19 +239,56 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
   const [catFilter,     setCatFilter]     = useState<string[]>([])
   const [tcFilter,      setTcFilter]      = useState<string[]>([])
 
-  // ── Opciones de filtro (de todos los datos, no del filtrado) ─────────────
-  const meses       = useMemo(() => MESES_ORDER.filter(m => data.some(r => r.mes === m)), [data])
-  const medios      = useMemo(() => [...new Set(data.map(r => r.medio).filter(Boolean))].sort(), [data])
-  const tipos       = useMemo(() => [...new Set(data.map(r => r.tipo_inversion).filter(Boolean))].sort(), [data])
-  const clientes    = useMemo(() =>
-    Object.entries(data.reduce((acc, r) => { acc[r.cliente] = (acc[r.cliente] ?? 0) + r.valor_cliente; return acc }, {} as Record<string,number>))
+  // ── Opciones de filtro EN CASCADA ─────────────────────────────────────────
+  // Cada dropdown se calcula aplicando todos los DEMÁS filtros activos (todos
+  // menos el propio), así nunca se puede armar una combinación sin datos —
+  // las opciones que ya no aplicarían simplemente desaparecen de la lista.
+  type FilterKey = 'mes'|'medio'|'tipo_inversion'|'cliente'|'pulso'|'proveedor'|'razon_social'|'categoria'|'tipo_compra'
+  const filterExcept = useCallback((except: FilterKey) => data.filter(r => {
+    if (except !== 'mes'            && mesFilter.length     > 0 && !mesFilter.includes(r.mes))                 return false
+    if (except !== 'medio'          && medioFilter.length   > 0 && !medioFilter.includes(r.medio))             return false
+    if (except !== 'tipo_inversion' && tipoFilter.length    > 0 && !tipoFilter.includes(r.tipo_inversion))     return false
+    if (except !== 'cliente'        && clienteFilter.length > 0 && !clienteFilter.includes(r.cliente))         return false
+    if (except !== 'pulso'          && pulsoFilter.length   > 0 && !pulsoFilter.includes(r.pulso))             return false
+    if (except !== 'proveedor'      && provFilter.length    > 0 && !provFilter.includes(r.proveedor))          return false
+    if (except !== 'razon_social'   && rsFilter.length      > 0 && !rsFilter.includes(r.razon_social))         return false
+    if (except !== 'categoria'      && catFilter.length     > 0 && !catFilter.includes(r.categoria))           return false
+    if (except !== 'tipo_compra'    && tcFilter.length      > 0 && !tcFilter.includes(r.tipo_compra))          return false
+    return true
+  }), [data, mesFilter, medioFilter, tipoFilter, clienteFilter, pulsoFilter, provFilter, rsFilter, catFilter, tcFilter])
+
+  const meses       = useMemo(() => { const rows = filterExcept('mes'); return MESES_ORDER.filter(m => rows.some(r => r.mes === m)) }, [filterExcept])
+  const medios      = useMemo(() => [...new Set(filterExcept('medio').map(r => r.medio).filter(Boolean))].sort(), [filterExcept])
+  const tipos       = useMemo(() => [...new Set(filterExcept('tipo_inversion').map(r => r.tipo_inversion).filter(Boolean))].sort(), [filterExcept])
+  const clientes    = useMemo(() => {
+    const rows = filterExcept('cliente')
+    return Object.entries(rows.reduce((acc, r) => { acc[r.cliente] = (acc[r.cliente] ?? 0) + r.valor_cliente; return acc }, {} as Record<string,number>))
       .sort(([,a],[,b]) => b - a).map(([c]) => c)
-  , [data])
-  const pulsos       = useMemo(() => [...new Set(data.map(r => r.pulso).filter(Boolean))].sort(), [data])
-  const proveedores = useMemo(() => [...new Set(data.map(r => r.proveedor).filter(Boolean))].sort(), [data])
-  const razones     = useMemo(() => [...new Set(data.map(r => r.razon_social).filter(Boolean))].sort(), [data])
-  const categorias  = useMemo(() => [...new Set(data.map(r => r.categoria).filter(Boolean))].sort(), [data])
-  const tiposCompra = useMemo(() => [...new Set(data.map(r => r.tipo_compra).filter(Boolean))].sort(), [data])
+  }, [filterExcept])
+  const pulsos       = useMemo(() => [...new Set(filterExcept('pulso').map(r => r.pulso).filter(Boolean))].sort(), [filterExcept])
+  const proveedores = useMemo(() => [...new Set(filterExcept('proveedor').map(r => r.proveedor).filter(Boolean))].sort(), [filterExcept])
+  const razones     = useMemo(() => [...new Set(filterExcept('razon_social').map(r => r.razon_social).filter(Boolean))].sort(), [filterExcept])
+  const categorias  = useMemo(() => [...new Set(filterExcept('categoria').map(r => r.categoria).filter(Boolean))].sort(), [filterExcept])
+  const tiposCompra = useMemo(() => [...new Set(filterExcept('tipo_compra').map(r => r.tipo_compra).filter(Boolean))].sort(), [filterExcept])
+
+  // Si un valor seleccionado deja de tener datos junto con los demás filtros
+  // activos, se quita solo (evita quedar filtrando por algo que ya no existe).
+  // Devolver la MISMA referencia cuando no hay nada que podar es clave: si no,
+  // cada recálculo de las listas de opciones dispara un set-state nuevo y
+  // vuelve a recalcular las listas -> loop infinito.
+  const prune = (opts: string[]) => (p: string[]) => {
+    const next = p.filter(v => opts.includes(v))
+    return next.length === p.length ? p : next
+  }
+  useEffect(() => { setMesFilter(prune(meses)) },             [meses])
+  useEffect(() => { setMedioFilter(prune(medios)) },          [medios])
+  useEffect(() => { setTipoFilter(prune(tipos)) },             [tipos])
+  useEffect(() => { setClienteFilter(prune(clientes)) },       [clientes])
+  useEffect(() => { setPulsoFilter(prune(pulsos)) },           [pulsos])
+  useEffect(() => { setProvFilter(prune(proveedores)) },       [proveedores])
+  useEffect(() => { setRsFilter(prune(razones)) },             [razones])
+  useEffect(() => { setCatFilter(prune(categorias)) },         [categorias])
+  useEffect(() => { setTcFilter(prune(tiposCompra)) },         [tiposCompra])
 
   // ── Datos filtrados ──────────────────────────────────────────────────────
   const filtered = useMemo(() => data.filter(r => {
