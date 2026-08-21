@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import gsap from 'gsap'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, Legend,
@@ -271,6 +272,25 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
 
   const activeCount = [mesFilter, medioFilter, tipoFilter, clienteFilter, pulsoFilter, provFilter, rsFilter, catFilter, tcFilter]
     .reduce((s, f) => s + (f.length > 0 ? 1 : 0), 0)
+
+  // ── Transición GSAP de los gráficos al cambiar un filtro ─────────────────
+  // Dip sutil + recuperación, escalonado (personalidad Corporate: sin rebote).
+  // No corre en el primer render (ese ya lo cubre el fade-up de las tarjetas).
+  const chartRefs = useRef<(HTMLDivElement | null)[]>([])
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    const els = chartRefs.current.filter((el): el is HTMLDivElement => el !== null)
+    if (els.length === 0) return
+    const mm = gsap.matchMedia()
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(els,
+        { autoAlpha: 0.5, y: 8 },
+        { autoAlpha: 1, y: 0, duration: 0.3, ease: 'power2.out', stagger: 0.05 },
+      )
+    })
+    return () => mm.revert()
+  }, [filtered])
 
   // ── KPIs ────────────────────────────────────────────────────────────────
   const invCliente    = useMemo(() => filtered.reduce((s, r) => s + r.valor_cliente,   0), [filtered])
@@ -573,7 +593,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           </div>
 
           {/* Tendencia mensual */}
-          <div className="bg-card rounded-2xl border border-border p-4 mb-5">
+          <div ref={el => { chartRefs.current[0] = el }} className="bg-card rounded-2xl border border-border p-4 mb-5">
             <p className="text-sm font-bold text-text-main mb-3">📈 Tendencia Mensual · Inv. Cliente vs Bruta vs Comisión</p>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={tendencia} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
@@ -592,7 +612,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           {/* Ranking por Medio + Top Clientes */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
 
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div ref={el => { chartRefs.current[1] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📡 Inversión por Medio</p>
               <ResponsiveContainer width="100%" height={Math.max(200, byMedio.length * 40)}>
                 <BarChart data={byMedio} layout="vertical" margin={{ top: 2, right: 70, left: 8, bottom: 2 }}>
@@ -608,7 +628,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div ref={el => { chartRefs.current[2] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">🏆 Top 10 Clientes · Inv. Cliente</p>
               <ResponsiveContainer width="100%" height={Math.max(200, topClientesData.length * 40)}>
                 <BarChart data={topClientesData} layout="vertical" margin={{ top: 2, right: 70, left: 8, bottom: 2 }}>
@@ -625,7 +645,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
 
           {/* Top Proveedores */}
           {topProveedoresData.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4 mb-5">
+            <div ref={el => { chartRefs.current[3] = el }} className="bg-card rounded-2xl border border-border p-4 mb-5">
               <p className="text-sm font-bold text-text-main mb-3">🏭 Top 10 Proveedores · Inv. Cliente</p>
               <ResponsiveContainer width="100%" height={Math.max(200, topProveedoresData.length * 40)}>
                 <BarChart data={topProveedoresData} layout="vertical" margin={{ top: 2, right: 80, left: 8, bottom: 2 }}>
@@ -643,7 +663,7 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
           {/* Donut + Tabla */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
 
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div ref={el => { chartRefs.current[4] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">📊 Distribución por Tipo de Inversión</p>
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
