@@ -20,10 +20,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Desregistrar Service Workers viejos automáticamente — sin SW activo,
+            el navegador respeta el caché normal de Next.js (headers correctos
+            por archivo) en vez de la caché manual de un SW que puede quedar
+            vieja. Evita tener que acordarse de subir versión en cada deploy. */}
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js');
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
             });
           }
         `}} />
