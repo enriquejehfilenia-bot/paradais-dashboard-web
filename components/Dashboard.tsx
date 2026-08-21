@@ -7,7 +7,6 @@ import FilterBar, { Filters } from './FilterBar'
 import TrendChart      from './TrendChart'
 import DonutChart      from './DonutChart'
 import TopClientsChart from './TopClientsChart'
-import SpecialAccounts from './SpecialAccounts'
 
 const fm = (n: number) =>
   '$' + Math.round(n).toLocaleString('es-EC', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -194,10 +193,7 @@ export default function Dashboard({
           </div>
 
           {/* Sección inferior */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div ref={el => { chartRefs.current[2] = el }}>
-              <SpecialAccounts data={filtered} projections={projections} />
-            </div>
+          <div className="grid grid-cols-1 gap-4 mb-6">
             <div ref={el => { chartRefs.current[3] = el }} className="bg-card rounded-2xl border border-border p-4">
               <p className="text-sm font-bold text-text-main mb-3">
                 📊 Top 10 Clientes Privados{' '}
