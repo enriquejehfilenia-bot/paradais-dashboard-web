@@ -10,10 +10,10 @@ interface Props {
 }
 
 const badgeStyles = {
-  green:   'bg-green-900/40 text-green-400 border border-green-800',
-  amber:   'bg-amber-900/40 text-amber-400 border border-amber-800',
-  red:     'bg-red-900/40   text-red-400   border border-red-800',
-  neutral: 'bg-surface      text-text-soft border border-border',
+  green:   'bg-emerald-500/10 text-emerald-400',
+  amber:   'bg-amber-500/10   text-amber-400',
+  red:     'bg-red-500/10     text-red-400',
+  neutral: 'bg-surface        text-text-soft',
 }
 
 // Cuenta ascendente suave hacia `target` cada vez que cambia (ej. al filtrar).
