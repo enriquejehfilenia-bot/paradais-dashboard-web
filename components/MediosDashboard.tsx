@@ -641,11 +641,11 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#2C2926" />
                 <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#A8A29E' }} />
                 <YAxis tickFormatter={v => fmk(v)} tick={{ fontSize: 10, fill: '#A8A29E' }} width={55} />
-                <Tooltip formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 12, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
+                <Tooltip animationDuration={180} animationEasing="ease-out" formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 12, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
                 <Legend wrapperStyle={{ fontSize: 11, color: '#A8A29E' }} />
-                <Line type="monotone" dataKey="Inv. Cliente" stroke="#EAB308" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="Inv. Bruta"   stroke="#6366F1" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 2" />
-                <Line type="monotone" dataKey="Comisión"     stroke="#10B981" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="2 2" />
+                <Line animationDuration={300} animationEasing="ease-out" type="monotone" dataKey="Inv. Cliente" stroke="#EAB308" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line animationDuration={300} animationEasing="ease-out" type="monotone" dataKey="Inv. Bruta"   stroke="#6366F1" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 2" />
+                <Line animationDuration={300} animationEasing="ease-out" type="monotone" dataKey="Comisión"     stroke="#10B981" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="2 2" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -660,8 +660,8 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
                   <CartesianGrid strokeDasharray="3 3" stroke="#2C2926" horizontal={false} />
                   <XAxis type="number" tickFormatter={v => fmk(v)} tick={{ fontSize: 9, fill: '#A8A29E' }} />
                   <YAxis type="category" dataKey="medio" tick={{ fontSize: 10, fill: '#F2F0EE' }} width={60} />
-                  <Tooltip formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
-                  <Bar dataKey="inv" radius={[0, 4, 4, 0]}
+                  <Tooltip animationDuration={180} animationEasing="ease-out" formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
+                  <Bar animationDuration={300} animationEasing="ease-out" dataKey="inv" radius={[0, 4, 4, 0]}
                     label={{ position: 'right', formatter: (v: number) => fmk(v), fontSize: 9, fill: '#F2F0EE' }}>
                     {byMedio.map((e, i) => <Cell key={i} fill={MEDIO_COLORS[e.medio] ?? '#94A3B8'} />)}
                   </Bar>
@@ -676,8 +676,8 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
                   <CartesianGrid strokeDasharray="3 3" stroke="#2C2926" horizontal={false} />
                   <XAxis type="number" tickFormatter={v => fmk(v)} tick={{ fontSize: 9, fill: '#A8A29E' }} />
                   <YAxis type="category" dataKey="cliente" tick={{ fontSize: 9, fill: '#F2F0EE' }} width={120} />
-                  <Tooltip formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
-                  <Bar dataKey="inv" fill="#EAB308" radius={[0, 4, 4, 0]}
+                  <Tooltip animationDuration={180} animationEasing="ease-out" formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
+                  <Bar animationDuration={300} animationEasing="ease-out" dataKey="inv" fill="#EAB308" radius={[0, 4, 4, 0]}
                     label={{ position: 'right', formatter: (v: number) => fmk(v), fontSize: 9, fill: '#F2F0EE' }} />
                 </BarChart>
               </ResponsiveContainer>
@@ -693,8 +693,8 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
                   <CartesianGrid strokeDasharray="3 3" stroke="#2C2926" horizontal={false} />
                   <XAxis type="number" tickFormatter={v => fmk(v)} tick={{ fontSize: 9, fill: '#A8A29E' }} />
                   <YAxis type="category" dataKey="proveedor" tick={{ fontSize: 9, fill: '#F2F0EE' }} width={130} />
-                  <Tooltip formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
-                  <Bar dataKey="inv" fill="#6366F1" radius={[0, 4, 4, 0]}
+                  <Tooltip animationDuration={180} animationEasing="ease-out" formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
+                  <Bar animationDuration={300} animationEasing="ease-out" dataKey="inv" fill="#6366F1" radius={[0, 4, 4, 0]}
                     label={{ position: 'right', formatter: (v: number) => fmk(v), fontSize: 9, fill: '#F2F0EE' }} />
                 </BarChart>
               </ResponsiveContainer>
@@ -709,13 +709,14 @@ export default function MediosDashboard({ data, updatedAt, onLogout }: Props) {
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie data={byTipo} cx="40%" cy="50%" innerRadius="50%" outerRadius="75%"
-                    dataKey="value" paddingAngle={2}>
+                    dataKey="value" paddingAngle={2} animationDuration={300} animationEasing="ease-out">
                     {byTipo.map((_, i) => (
                       <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} stroke="#fff" strokeWidth={2} />
                     ))}
                     <Label content={<DonutLabel />} position="center" />
                   </Pie>
-                  <Tooltip formatter={(v: number, n: string) => [`${invCliente>0?((v/invCliente)*100).toFixed(1):0}% · ${fm(v)}`, n]}
+                  <Tooltip animationDuration={180} animationEasing="ease-out"
+                    formatter={(v: number, n: string) => [`${invCliente>0?((v/invCliente)*100).toFixed(1):0}% · ${fm(v)}`, n]}
                     contentStyle={{ borderRadius: 8, fontSize: 11, background: '#1C1917', border: '1px solid #2C2926', color: '#F2F0EE' }} />
                   <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle"
                     wrapperStyle={{ fontSize: 10, color: '#A8A29E' }}

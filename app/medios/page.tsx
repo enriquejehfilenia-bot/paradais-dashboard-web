@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { getMediosData } from '@/lib/api'
 import { clearAuth } from '@/lib/auth'
 import MediosDashboard from '@/components/MediosDashboard'
+import DashboardSkeleton from '@/components/DashboardSkeleton'
 
 export default function MediosPage() {
   const router = useRouter()
@@ -32,14 +33,7 @@ export default function MediosPage() {
     router.replace('/login')
   }
 
-  if (state.loading) return (
-    <div className="flex items-center justify-center h-screen bg-bg">
-      <div className="text-center">
-        <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-text-soft text-sm">Cargando datos de medios...</p>
-      </div>
-    </div>
-  )
+  if (state.loading) return <DashboardSkeleton />
 
   if (state.error) return (
     <div className="flex items-center justify-center h-screen bg-bg">

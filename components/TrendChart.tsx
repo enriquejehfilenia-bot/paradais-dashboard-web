@@ -65,13 +65,15 @@ export default function TrendChart({ data }: Props) {
           width={55}
         />
         <Tooltip
+          animationDuration={180}
+          animationEasing="ease-out"
           formatter={(v: number) => fm(v)}
           contentStyle={{ borderRadius: 8, border: '1px solid #2C2926', background: '#1C1917', color: '#F2F0EE', fontSize: 12 }}
         />
         <Legend iconType="line" wrapperStyle={{ fontSize: 11, color: '#A8A29E' }} />
-        <Line type="monotone" dataKey="Ventas" stroke="#EAB308" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-        <Line type="monotone" dataKey="Costos" stroke="#64748B" strokeWidth={2}   dot={{ r: 3 }} />
-        <Line type="monotone" dataKey="Margen" stroke="#10B981" strokeWidth={2}   dot={{ r: 3 }} strokeDasharray="5 5" />
+        <Line animationDuration={300} animationEasing="ease-out" type="monotone" dataKey="Ventas" stroke="#EAB308" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+        <Line animationDuration={300} animationEasing="ease-out" type="monotone" dataKey="Costos" stroke="#64748B" strokeWidth={2}   dot={{ r: 3 }} />
+        <Line animationDuration={300} animationEasing="ease-out" type="monotone" dataKey="Margen" stroke="#10B981" strokeWidth={2}   dot={{ r: 3 }} strokeDasharray="5 5" />
       </LineChart>
     </ResponsiveContainer>
   )

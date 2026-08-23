@@ -54,6 +54,8 @@ export default function DonutChart({ data, total }: Props) {
           outerRadius="80%"
           dataKey="value"
           paddingAngle={2}
+          animationDuration={300}
+          animationEasing="ease-out"
         >
           {chartData.map((_, i) => (
             <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#0F0E0D" strokeWidth={2} />
@@ -61,6 +63,8 @@ export default function DonutChart({ data, total }: Props) {
           <Label content={<CenterLabel />} position="center" />
         </Pie>
         <Tooltip
+          animationDuration={180}
+          animationEasing="ease-out"
           formatter={(v: number, name: string) => [
             `${total > 0 ? ((v / total) * 100).toFixed(1) : 0}% · ${fm(v)}`,
             name,

@@ -140,8 +140,8 @@ export default function TopClientsChart({ data, projections }: Props) {
           <CartesianGrid strokeDasharray="3 3" stroke="#2C2926" horizontal={false} />
           <XAxis type="number" tickFormatter={v => `$${(v/1e6).toFixed(1)}M`} tick={{ fontSize: 10, fill: '#A8A29E' }} />
           <YAxis type="category" dataKey="Cliente" tick={{ fontSize: 10, fill: '#F2F0EE' }} width={120} />
-          <Tooltip formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, border: '1px solid #2C2926', background: '#1C1917', color: '#F2F0EE', fontSize: 12 }} />
-          <Bar dataKey="Ventas" radius={[0, 4, 4, 0]} label={{ position: 'right', formatter: (v: number) => fm(v), fontSize: 10, fill: '#F2F0EE' }}>
+          <Tooltip animationDuration={180} animationEasing="ease-out" formatter={(v: number) => fm(v)} contentStyle={{ borderRadius: 8, border: '1px solid #2C2926', background: '#1C1917', color: '#F2F0EE', fontSize: 12 }} />
+          <Bar animationDuration={300} animationEasing="ease-out" dataKey="Ventas" radius={[0, 4, 4, 0]} label={{ position: 'right', formatter: (v: number) => fm(v), fontSize: 10, fill: '#F2F0EE' }}>
             {top10.map((entry, i) => <Cell key={i} fill={barColor(entry.pct)} />)}
           </Bar>
         </BarChart>

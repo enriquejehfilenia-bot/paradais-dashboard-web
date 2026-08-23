@@ -72,8 +72,22 @@ select.dark-select:focus { outline: none; border-color: #EAB308; }
   pointer-events: none;
 }
 
+/* Skeleton de carga con shimmer — reemplaza spinners en las pantallas de carga.
+   Se percibe más rápido que un spinner aunque tarde lo mismo (rendimiento percibido). */
+.skeleton {
+  background: linear-gradient(90deg, #1C1917 25%, #242120 37%, #1C1917 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up { animation: none; }
   .press:active { transform: none; }
   .dropdown-panel, .dropdown-panel[data-closed] { transition: opacity 120ms ease; transform: none; }
+  .skeleton { animation: none; background: #1C1917; }
 }
