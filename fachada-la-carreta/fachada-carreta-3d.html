@@ -1238,7 +1238,7 @@
 (function () {
   var H = 4.0, LS = 1;                         // alto libre (m) y escala de rótulos
   var COL = 0.45;                              // ancho de la columna de madera: las rejas van entre columnas
-  var P = { FW: 8, D: 4, H: 3, bay: 4, doors: 'der', gap: 0.12, t: 0.02, iva: 15 };
+  var P = { FW: 8, D: 4, H: 3, bay: 4, doors: 'todas', gap: 0.12, t: 0.02, iva: 15 };
   var E = 0.0015;                              // pared del tubo (1,5 mm en 20 y 25 mm; 2 mm en los demás)
   var Z_FIX = -0.02, Z_DOOR = -0.10;           // planos: fijos al frente, puertas detrás
   var D_Y0 = 0.08, D_H = H - 0.08 - 0.06;
@@ -1410,11 +1410,11 @@
   // Con un solo tramo al frente solo hay dos opciones reales: con puerta o sin puerta
   function syncDoorOptions(nF) {
     var sel = document.getElementById('pDoors'), kind = nF === 1 ? 1 : nF === 2 ? 2 : 3, opts =
-      kind === 1 ? [['centro', 'Con 2 puertas'], ['ninguna', 'Sin puertas']] :
-      kind === 2 ? [['der', 'En el tramo derecho'], ['izq', 'En el tramo izquierdo'], ['todas', 'En los 2 tramos'], ['ninguna', 'Sin puertas']] :
+      kind === 1 ? [['centro', 'Con puerta'], ['ninguna', 'Sin puerta']] :
+      kind === 2 ? [['todas', 'Una en cada tramo'], ['der', 'Solo en el tramo derecho'], ['izq', 'Solo en el tramo izquierdo'], ['ninguna', 'Sin puertas']] :
       [['centro', 'Al centro del frente'], ['todas', 'En todo el frente'], ['izq', 'A la izquierda del frente'], ['der', 'A la derecha del frente'], ['ninguna', 'Sin puertas']];
     if (kind === 1 && P.doors !== 'ninguna') P.doors = 'centro';
-    if (kind === 2 && P.doors === 'centro') P.doors = 'der';
+    if (kind === 2 && P.doors === 'centro') P.doors = 'todas';
     if (sel.dataset.n !== String(kind)) {
       sel.innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('');
       sel.dataset.n = String(kind);
@@ -1602,12 +1602,12 @@
     if (nDB) {
       add('varilla', 'Varilla lisa 5/8″ (riel inferior), barra de 6 m', nDB, 'barras', 'Un riel de ' + fm(info.cw) + ' m (entre columnas) por puerta corrediza');
       add('canal', 'Canal U 80×40×3 mm (guía superior), barra de 6 m', nDB, 'barras', 'Una guía de ' + fm(info.cw) + ' m (entre columnas) por puerta corrediza');
-      add('ruedas', 'Ruedas con garganta en V Ø80 mm, rodamiento sellado, ≥100 kg', 4 * nDB, 'u', '2 por cada una de las 2 puertas');
-      add('rodillos', 'Rodillos guía de nylon para la guía superior', 4 * nDB, 'u', '2 por cada una de las 2 puertas');
+      add('ruedas', 'Ruedas con garganta en V Ø80 mm, rodamiento sellado, ≥100 kg', 4 * nDB, 'u', '4 por puerta (2 por hoja)');
+      add('rodillos', 'Rodillos guía de nylon para la guía superior', 4 * nDB, 'u', '4 por puerta (2 por hoja)');
       add('topes', 'Topes de apertura (platina + goma)', 4 * nDB, 'u', '');
       add('pasador', 'Pasador de piso para puerta corrediza', 2 * nDB, 'u', '');
       add('cerradura', 'Cerradura de gancho con candado', nDB, 'u', 'Sobre el cierre central de la puerta');
-      add('jaladera', 'Jaladera tubular para puerta', 2 * nDB, 'u', 'Una por puerta');
+      add('jaladera', 'Jaladera tubular para puerta', 2 * nDB, 'u', 'Una por hoja (2 hojas por puerta)');
     }
     add('platinas', 'Platina de anclaje 100×100×6 mm', plates, 'u', anchors + ' en paneles' + (railPlates ? ' + ' + railPlates + ' bajo los rieles' : ''));
     add('pernos', 'Perno de anclaje de expansión 3/8″ × 3″', bolts, 'u', '2 por platina');
@@ -1640,7 +1640,7 @@
 
     var gf = info.fixedP.length ? info.fixedP[0].gap : 0.12, kf = info.fixedP.length ? info.fixedP[0].k : 0;
     document.getElementById('summary').innerHTML =
-      '<b>Frente:</b> ' + (info.nF === 1 ? fm(info.bw) + ' m' : info.nF + ' tramos de ' + fm(info.bw) + ' m') + ' (' + fm(info.cw) + ' m libres entre columnas), ' + (nDB === 0 ? 'sin puerta.' : nDB === 1 ? 'con 2 puertas corredizas que se juntan al centro.' : 'con puerta corrediza en ' + nDB + ' tramos.') + ' ' + (kf ? 'Cada reja fija de ' + fm(info.fixedP[0].w) + ' m: ' + kf + ' tubos, separación real ' + fm(gf * 100, 1) + ' cm.<br>' : '<br>') +
+      '<b>Frente:</b> ' + (info.nF === 1 ? fm(info.bw) + ' m' : info.nF + ' tramos de ' + fm(info.bw) + ' m') + ' (' + fm(info.cw) + ' m libres entre columnas), ' + (nDB === 0 ? 'sin puerta.' : nDB === 1 ? 'con 1 puerta corrediza de 2 hojas que se juntan al centro.' : 'con una puerta corrediza en cada tramo (' + nDB + ' puertas, cada una de 2 hojas que se juntan al centro).') + ' ' + (kf ? 'Cada reja fija de ' + fm(info.fixedP[0].w) + ' m: ' + kf + ' tubos, separación real ' + fm(gf * 100, 1) + ' cm.<br>' : '<br>') +
       '<b>Cerrado por los 4 lados</b> (opción de menor costo, separación mínima ' + fm(P.gap * 100, 0) + ' cm): costados de ' + fm(P.D) + ' m con ' + info.sideP[0].k + ' tubos' + (info.nS > 1 ? ' por tramo' : '') + ' (separación real ' + fm(info.sideP[0].gap * 100, 1) + ' cm); fondo de ' + fm(P.FW) + ' m.<br>' +
       '<b>' + info.tubeLine.split(':')[0] + ':</b> ' + info.tubeLine.split(': ')[1] + '.<br>' +
       '<b>Tubo total:</b> ' + fm(totalLen, 1) + ' m' + (nDB ? ' · <b>Peso de cada puerta:</b> unos ' + Math.round(doorKg + 6) + ' kg con herrajes.' : '.');
