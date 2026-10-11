@@ -119,7 +119,7 @@
 <div id="stage"></div>
 <header>
   <h1>La Carreta · Fachada de tubo con puertas corredizas</h1>
-  <p id="sub">Frente 8,00 m · Alto 3,00 m · Fondo 4,00 m</p>
+  <p id="sub">Frente 8,00 m · Alto 3,00 m · Fondo 8,00 m</p>
 </header>
 <div id="hint">Arrastra para girar · pellizca para acercar</div>
 
@@ -164,7 +164,7 @@
   <div class="sheethead"><h2>Lista de materiales</h2><button id="bCloseSheet" style="min-width:90px">Cerrar</button></div>
   <div class="params">
     <div><label for="pFW">Frente (m)</label><input id="pFW" type="number" inputmode="decimal" step="0.5" min="2" value="8"></div>
-    <div><label for="pD">Fondo (m)</label><input id="pD" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
+    <div><label for="pD">Fondo (m)</label><input id="pD" type="number" inputmode="decimal" step="0.5" min="2" value="8"></div>
     <div><label for="pH">Alto de la reja (m)</label><input id="pH" type="number" inputmode="decimal" step="0.1" min="2" value="3"></div>
     <div><label for="pBay">Distancia entre columnas (m)</label><input id="pBay" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pDoors">Puertas corredizas en</label>
@@ -1244,7 +1244,7 @@
   var H = 4.0, LS = 1;                         // alto libre (m) y escala de rótulos
   var TH = 0.12;                               // ancho de los pilares delgados de metal (costados y fondo)
   var COL = 0.45;                              // ancho de la columna de madera: las rejas van entre columnas
-  var P = { FW: 8, D: 4, H: 3, bay: 4, doors: 'todas', gap: 0.12, t: 0.02, iva: 15 };
+  var P = { FW: 8, D: 8, H: 3, bay: 4, doors: 'todas', gap: 0.12, t: 0.02, iva: 15 };
   var E = 0.0015;                              // pared del tubo (1,5 mm en 20 y 25 mm; 2 mm en los demás)
   var Z_FIX = -0.02, Z_DOOR = -0.10;           // planos: fijos al frente, puertas detrás
   var D_Y0 = 0.08, D_H = H - 0.08 - 0.06;
@@ -1555,7 +1555,7 @@
     dimLine(dimsG, V(FW / 2 + 1.1 * LS, 0, 0), V(FW / 2 + 1.1 * LS, 0, -D), V(1, 0, 0), fm(D) + ' m');
     var lf = label('Lado der.'); lf.position.set(FW / 2 + 0.3, 1.0, -D / 2); dimsG.add(lf);
     var li = label('Lado izq.'); li.position.set(x0 - 0.3, 1.0, -D / 2); dimsG.add(li);
-    var lbk = label('Fondo'); lbk.position.set(0, 1.0, -D - 0.3); dimsG.add(lbk);
+    var lbk = label('Pared trasera'); lbk.position.set(0, 1.0, -D - 0.3); dimsG.add(lbk);
 
     ctxG.visible = vis.ctx; sideG.visible = vis.sides; dimsG.visible = vis.dims;
     fasMats.forEach(function (m) { m.emissiveIntensity = nightOn ? 0.85 : 0.2; });
@@ -1630,12 +1630,12 @@
     add('mo', 'Mano de obra: corte, soldadura, pintura e instalación', 1, 'global', '');
     info.summary = { pk: pk, totalLen: totalLen, doorKg: doorKg, area: area };
 
-    var TAGS = [['Fijo', 'Frente fijo'], ['Puerta', 'Puerta corrediza (' + 2 * nDB + ' hojas)'], ['Der', 'Costado derecho'], ['Izq', 'Costado izquierdo'], ['Fondo', 'Fondo']];
+    var TAGS = [['Fijo', 'Frente fijo'], ['Puerta', 'Puerta corrediza (' + 2 * nDB + ' hojas)'], ['Der', 'Costado derecho'], ['Izq', 'Costado izquierdo'], ['Fondo', 'Pared trasera']];
     var parts = {}, cnt = {};
     TAGS.forEach(function (r) { parts[r[0]] = 0; cnt[r[0]] = 0; });
     all.forEach(function (it) { parts[it.p] += it.l; cnt[it.p] += 1; });
     var tc = info.tubeCnt, tubesFrente = (tc['Fijo'] || 0) + (tc['Puerta'] || 0), tubesTotal = tubesFrente + (tc['Der'] || 0) + (tc['Izq'] || 0) + (tc['Fondo'] || 0);
-    info.tubeLine = 'Tubos verticales: frente ' + tubesFrente + ', costado derecho ' + (tc['Der'] || 0) + ', costado izquierdo ' + (tc['Izq'] || 0) + ', fondo ' + (tc['Fondo'] || 0) + ' (total ' + tubesTotal + ')';
+    info.tubeLine = 'Tubos verticales: frente ' + tubesFrente + ', costado derecho ' + (tc['Der'] || 0) + ', costado izquierdo ' + (tc['Izq'] || 0) + ', pared trasera ' + (tc['Fondo'] || 0) + ' (total ' + tubesTotal + ')';
     var ph = '<tr><th>Parte</th><th class="n">Tubos verticales</th><th class="n">Piezas</th><th class="n">Metros</th><th class="n">≈ Barras</th></tr>';
     TAGS.forEach(function (r) {
       ph += '<tr><td>' + r[1] + '</td><td class="n">' + (tc[r[0]] || 0) + '</td><td class="n">' + cnt[r[0]] + '</td><td class="n">' + fm(parts[r[0]], 1) + '</td><td class="n">' + fm(parts[r[0]] / 6, 1) + '</td></tr>';
@@ -1654,7 +1654,7 @@
     var gf = info.fixedP.length ? info.fixedP[0].gap : 0.12, kf = info.fixedP.length ? info.fixedP[0].k : 0;
     document.getElementById('summary').innerHTML =
       '<b>Frente:</b> ' + (info.nF === 1 ? fm(info.bw) + ' m' : info.nF + ' tramos de ' + fm(info.bw) + ' m') + ' (' + fm(info.cw) + ' m libres entre columnas), ' + (nDB === 0 ? 'sin puerta.' : nDB === 1 ? 'con 1 puerta corrediza de 2 hojas que se juntan al centro.' : 'con una puerta corrediza en cada tramo (' + nDB + ' puertas, cada una de 2 hojas que se juntan al centro).') + ' ' + (kf ? 'Cada reja fija de ' + fm(info.fixedP[0].w) + ' m: ' + kf + ' tubos, separación real ' + fm(gf * 100, 1) + ' cm.<br>' : '<br>') +
-      '<b>Cerrado por los 4 lados</b> (opción de menor costo, separación mínima ' + fm(P.gap * 100, 0) + ' cm): cada costado de ' + fm(P.D) + ' m lleva 3 pilares de metal (' + info.nS + ' tramos) y ' + (info.sideP[0].k + info.sideP[1].k) + ' tubos, con separación real de ' + fm(Math.min(info.sideP[0].gap, info.sideP[1].gap) * 100, 1) + ' a ' + fm(Math.max(info.sideP[0].gap, info.sideP[1].gap) * 100, 1) + ' cm; fondo de ' + fm(P.FW) + ' m.<br>' +
+      '<b>Cerrado por los 4 lados</b> (opción de menor costo, separación mínima ' + fm(P.gap * 100, 0) + ' cm): cada costado (el fondo de ' + fm(P.D) + ' m) lleva 3 pilares de metal (' + info.nS + ' tramos) y ' + (info.sideP[0].k + info.sideP[1].k) + ' tubos, con separación real de ' + fm(Math.min(info.sideP[0].gap, info.sideP[1].gap) * 100, 1) + ' a ' + fm(Math.max(info.sideP[0].gap, info.sideP[1].gap) * 100, 1) + ' cm; pared trasera de ' + fm(P.FW) + ' m, también en ' + info.nF + (info.nF === 1 ? ' tramo' : ' tramos') + ' fijos.<br>' +
       '<b>' + info.tubeLine.split(':')[0] + ':</b> ' + info.tubeLine.split(': ')[1] + '.<br>' +
       '<b>Tubo total:</b> ' + fm(totalLen, 1) + ' m' + (nDB ? ' · <b>Peso de cada puerta:</b> unos ' + Math.round(doorKg + 6) + ' kg con herrajes.' : '.');
     document.getElementById('notes').innerHTML =
@@ -1824,7 +1824,7 @@
   // Las medidas se aplican al pulsar "Calcular" (o Enter en un campo); mientras tanto el botón avisa que hay cambios
   var bCalc = document.getElementById('bCalc');
   function readParams() {
-    P.D = Math.min(60, Math.max(2, num(document.getElementById('pD').value) || 4));
+    P.D = Math.min(60, Math.max(2, num(document.getElementById('pD').value) || 8));
     P.FW = Math.min(60, Math.max(2, num(document.getElementById('pFW').value) || 8));
     P.H = Math.min(8, Math.max(2, num(document.getElementById('pH').value) || 3));
     P.bay = Math.min(10, Math.max(2, num(document.getElementById('pBay').value) || 4));
