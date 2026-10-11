@@ -12,4 +12,3 @@ Dentro del visor, la proforma tiene botones **Excel (.xlsx)** y **PDF / Imprimir
 - Frente 4 m y fondo 4 m, cerrado por los 4 lados con reja de tubo (frente con la puerta corrediza: dos hojas que se esconden detras de los fijos y se juntan al centro; costados y fondo fijos).
 - Vano de 4 m medido de centro a centro de columna; columnas de 45 cm, por lo que cada reja mide 3,55 m entre columnas.
 - Tubo 20 × 20 × 1,5 mm.
-- La imagen muestra el local completo de 12 × 8 m con 12 mesas de 4 puestos (2 dentro de la reja y 10 alrededor). Es solo ilustracion: la proforma sigue calculada para la reja de 4 × 4 m.
