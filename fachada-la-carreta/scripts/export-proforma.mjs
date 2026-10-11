@@ -1,0 +1,12 @@
+import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
+const [file, out] = process.argv.slice(2);
+const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const ctx = await b.newContext({ viewport: { width: 900, height: 1200 }, acceptDownloads: true });
+const p = await ctx.newPage();
+await p.goto('file://' + file); await p.waitForTimeout(1500);
+await p.click('#bBom');
+const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#bXlsx')]);
+await dl.saveAs(out + '/proforma-fachada-la-carreta.xlsx');
+await p.emulateMedia({ media: 'print' });
+await p.pdf({ path: out + '/proforma-fachada-la-carreta.pdf', format: 'A4', margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' }, printBackground: true });
+await b.close();
