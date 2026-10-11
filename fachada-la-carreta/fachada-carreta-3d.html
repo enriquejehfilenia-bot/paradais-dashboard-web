@@ -83,7 +83,6 @@
   td input { min-height: 36px; padding: 5px 4px; text-align: right; width: 76px; }
   tr.total td { font-weight: 650; border-bottom: none; }
   .note { font-size: 12px; opacity: .8; line-height: 1.5; }
-  textarea { width: 100%; box-sizing: border-box; min-height: 150px; font: inherit; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
   #vid { position: fixed; inset: 0; background: rgba(10,8,6,.96); display: none; flex-direction: column; z-index: 20; }
   #vid.show { display: flex; }
   #vid .bar { padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 8px; }
@@ -100,7 +99,7 @@
   #photo a { color: #E39A4A; }
   @media print {
     html, body { height: auto; overflow: visible; background: #fff; color: #000; }
-    #stage, header, #panel, #hint, #photo, #vid, .sheethead button, #bCopy, #bXlsx, #bPdf, #wa, textarea, h3.wa { display: none !important; }
+    #stage, header, #panel, #hint, #photo, #vid, .sheethead button, #bXlsx, #bPdf { display: none !important; }
     #sheet { position: static; display: block !important; overflow: visible; padding: 0; background: #fff; }
     .sheethead { position: static; }
     .params { display: none; }
@@ -178,9 +177,7 @@
   <table id="parts"></table>
   <h3>Plan de corte, barra por barra</h3>
   <table id="cuts"></table>
-  <h3 class="wa">Texto para enviar por WhatsApp</h3>
-  <textarea id="wa" readonly></textarea>
-  <div class="row3" style="grid-template-columns: 1fr 1fr 1fr;"><button id="bCopy">Copiar texto</button><button id="bXlsx">Excel (.xlsx)</button><button id="bPdf">PDF / Imprimir</button></div>
+  <div class="row3" style="grid-template-columns: 1fr 1fr;"><button id="bXlsx">Excel (.xlsx)</button><button id="bPdf">PDF / Imprimir</button></div>
   <p class="note" id="notes"></p>
 </section>
 
@@ -1670,12 +1667,7 @@
   }
   function money(n) { return '$' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   function totals() {
-    if (!SHOW_PRICES) {
-      var t0 = 'Lista de materiales — Fachada La Carreta (tubo cuadrado)\nFrente ' + fm(P.FW) + ' m · Alto ' + fm(P.H) + ' m · Fondo ' + fm(P.D) + ' m · Tubo ' + Math.round(P.t * 1000) + '×' + Math.round(P.t * 1000) + ' mm\n\n' + info.tubeLine + '. Cerrado por los 4 lados.\n\n';
-      items.forEach(function (it) { t0 += '• ' + it.desc + ': ' + it.qty + ' ' + it.unit + '\n'; });
-      document.getElementById('wa').value = t0;
-      return;
-    }
+    if (!SHOW_PRICES) return;
     var sub = 0;
     items.forEach(function (it, i) {
       var inp = document.querySelector('#bom input[data-i="' + i + '"]');
@@ -1686,14 +1678,6 @@
     document.getElementById('tSub').textContent = sub ? money(sub) : '–';
     document.getElementById('tIva').textContent = sub ? money(iva) : '–';
     document.getElementById('tTot').textContent = sub ? money(sub + iva) : '–';
-    var txt = 'Proforma de materiales — Fachada La Carreta (tubo cuadrado)\nFrente ' + fm(P.FW) + ' m · Alto ' + fm(P.H) + ' m · Fondo ' + fm(P.D) + ' m · Tubo ' + Math.round(P.t * 1000) + '×' + Math.round(P.t * 1000) + ' mm\n\n';
-    txt += info.tubeLine + '. Cerrado por los 4 lados.\n\n';
-    items.forEach(function (it, i) {
-      var inp = document.querySelector('#bom input[data-i="' + i + '"]'), p = num(inp ? inp.value : 0);
-      txt += '• ' + it.desc + ': ' + it.qty + ' ' + it.unit + (p ? ' × ' + money(p) + ' = ' + money(p * it.qty) : '') + '\n';
-    });
-    if (sub) txt += '\nSubtotal ' + money(sub) + '\nIVA ' + P.iva + '% ' + money(iva) + '\nTotal ' + money(sub + iva);
-    document.getElementById('wa').value = txt;
   }
 
   // ---------- Exportar: Excel (.xlsx real, sin librerías) y PDF (imprimir) ----------
@@ -1822,12 +1806,6 @@
   bindParam('pGap', function (v) { P.gap = Math.min(0.4, Math.max(0.05, (num(v) || 12) / 100)); });
   bindParam('pT', function (v) { var a = v.split('|'); P.t = num(a[0]) / 1000; E = num(a[1]) / 1000; });
   document.getElementById('pIva').addEventListener('change', function (e) { P.iva = Math.max(0, num(e.target.value)); totals(); });
-  document.getElementById('bCopy').addEventListener('click', function () {
-    var ta = document.getElementById('wa'); ta.focus(); ta.select();
-    var b = document.getElementById('bCopy');
-    try { navigator.clipboard.writeText(ta.value).then(function () { b.textContent = 'Texto copiado'; }, function () { document.execCommand('copy'); b.textContent = 'Texto copiado'; }); }
-    catch (e) { try { document.execCommand('copy'); b.textContent = 'Texto copiado'; } catch (e2) { b.textContent = 'Selecciona y copia el texto'; } }
-  });
 
   // Encuadre: el modelo se centra en el espacio libre entre el título y el panel
   function freeArea() {

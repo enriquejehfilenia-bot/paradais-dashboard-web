@@ -1,6 +1,6 @@
 # Fachada La Carreta
 
-- `fachada-carreta-3d.html`: visor 3D + proforma en un solo archivo, funciona sin internet (se envía por WhatsApp).
+- `fachada-carreta-3d.html`: visor 3D + proforma en un solo archivo, funciona sin internet.
 - `lista-materiales-fachada-la-carreta.xlsx` / `.pdf`: lista de cantidades de material, sin precios por ahora (en `fachada-carreta-3d.html`, `SHOW_PRICES = true` los vuelve a activar; el tubo es de $7,50 la barra).
 - Video del recorrido: en pausa hasta definir el proyecto (se regenera con `scripts/render-video.mjs`; el boton Video del visor esta oculto).
 - `scripts/`: `check.mjs` (revisión en celular y escritorio), `export-proforma.mjs`, `render-video.mjs`.
