@@ -1419,36 +1419,38 @@
       if (P.doors === 'todas' || (P.doors === 'centro' && q === Math.floor(nF / 2)) || (P.doors === 'izq' && q === 0) || (P.doors === 'der' && q === nF - 1)) doorBays.push(q);
     }
 
+    var LW = 12, LD = 8, nFL = Math.round(LW / bay), nSL = Math.round(LD / bay), bwL = LW / nFL, swL = LD / nSL, x0L = -LW / 2;   // local completo (imagen): 12 x 8 m
     // Entorno: terraza, escalones, columnas, frente de madera con rótulo, losa, lámparas, mesas y jardinera
-    for (var ci = 0; ci <= nF; ci++) ctxG.add(column(x0 + ci * bw));
+    for (var ci = 0; ci <= nFL; ci++) ctxG.add(column(x0L + ci * bwL));
     function plainColumn(x, z) { ctxG.add(box(0.45, H, 0.45, mWood, x, H / 2, z)); }
-    for (var cj = 1; cj <= nS; cj++) { plainColumn(x0, -cj * sw); plainColumn(FW / 2, -cj * sw); }
-    for (var ck = 1; ck < nF; ck++) plainColumn(x0 + ck * bw, -D);
-    var floor = box(FW + 1.4, 0.85, D + 0.8, mFloor, 0, -0.425, 0.4 - D / 2); floor.castShadow = false; ctxG.add(floor);
+    for (var cj = 1; cj <= nSL; cj++) { plainColumn(x0L, -cj * swL); plainColumn(LW / 2, -cj * swL); }
+    for (var ck = 1; ck < nFL; ck++) plainColumn(x0L + ck * bwL, -LD);
+    [-1, 1].forEach(function (sd) { for (var cj2 = 1; cj2 <= nS; cj2++) plainColumn(sd * FW / 2, -cj2 * sw); });
+    var floor = box(LW + 1.4, 0.85, LD + 0.8, mFloor, 0, -0.425, 0.4 - LD / 2); floor.castShadow = false; ctxG.add(floor);
     for (var s = 1; s <= 4; s++) {
       var top = -0.17 * s, hh = top + 0.85;
-      ctxG.add(box(FW + 1.4, hh, 0.4, mStone, 0, top - hh / 2, 0.8 + 0.4 * (s - 0.5)));
+      ctxG.add(box(LW + 1.4, hh, 0.4, mStone, 0, top - hh / 2, 0.8 + 0.4 * (s - 0.5)));
     }
-    var roof = box(FW + 0.9, 0.12, D + 0.1, mRoof, 0, H + 0.06, 0.05 - D / 2); roof.castShadow = false; ctxG.add(roof);
-    var fh = Math.max(0.75, (FW + 0.9) / 9), fy = H + 0.12 + fh / 2;
-    var matF = fasciaMat((FW + 0.86) / fh), matS = fasciaMat((D + 0.06) / fh);
-    ctxG.add(box(FW + 0.9, fh, 0.1, mTeal, 0, fy, 0.05));
-    var fp = new THREE.Mesh(new THREE.PlaneGeometry(FW + 0.86, fh - 0.05), matF); fp.position.set(0, fy, 0.101); ctxG.add(fp);
+    var roof = box(LW + 0.9, 0.12, LD + 0.1, mRoof, 0, H + 0.06, 0.05 - LD / 2); roof.castShadow = false; ctxG.add(roof);
+    var fh = Math.max(0.75, (LW + 0.9) / 9), fy = H + 0.12 + fh / 2;
+    var matF = fasciaMat((LW + 0.86) / fh), matS = fasciaMat((LD + 0.06) / fh);
+    ctxG.add(box(LW + 0.9, fh, 0.1, mTeal, 0, fy, 0.05));
+    var fp = new THREE.Mesh(new THREE.PlaneGeometry(LW + 0.86, fh - 0.05), matF); fp.position.set(0, fy, 0.101); ctxG.add(fp);
     [-1, 1].forEach(function (sd) {
-      ctxG.add(box(0.1, fh, D + 0.1, mTeal, sd * (FW / 2 + 0.45), fy, 0.05 - D / 2));
-      var sp = new THREE.Mesh(new THREE.PlaneGeometry(D + 0.06, fh - 0.05), matS);
-      sp.rotation.y = sd * Math.PI / 2; sp.position.set(sd * (FW / 2 + 0.501), fy, 0.05 - D / 2); ctxG.add(sp);
+      ctxG.add(box(0.1, fh, LD + 0.1, mTeal, sd * (LW / 2 + 0.45), fy, 0.05 - LD / 2));
+      var sp = new THREE.Mesh(new THREE.PlaneGeometry(LD + 0.06, fh - 0.05), matS);
+      sp.rotation.y = sd * Math.PI / 2; sp.position.set(sd * (LW / 2 + 0.501), fy, 0.05 - LD / 2); ctxG.add(sp);
     });
     glows = [];
-    for (var lx = x0 + 1.5; lx < FW / 2; lx += 3) {
-      for (var lz = -1.5; -lz < D - 0.3; lz -= 3) {
+    for (var lx = x0L + 1.5; lx < LW / 2; lx += 3) {
+      for (var lz = -1.5; -lz < LD - 0.3; lz -= 3) {
         var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 14), mLamp); lamp.position.set(lx, H - 0.14, lz); ctxG.add(lamp);
         glow(ctxG, lx, H - 0.14, lz, 0.9);
       }
       var fl = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), mLamp); fl.position.set(lx, H + 0.12 + fh + 0.07, 0.22); ctxG.add(fl);
       glow(ctxG, lx, H + 0.12 + fh + 0.07, 0.22, 0.9);
     }
-    for (var gi = 0; gi <= nF; gi++) glow(ctxG, x0 + gi * bw, 0.12, 0.1, 0.6);
+    for (var gi = 0; gi <= nFL; gi++) glow(ctxG, x0L + gi * bwL, 0.12, 0.1, 0.6);
     var mTable = new THREE.MeshStandardMaterial({ color: 0x5b3a22, roughness: 0.7 });
     function table(x, z) {
       ctxG.add(box(0.9, 0.05, 0.9, mTable, x, 0.76, z));
@@ -1460,15 +1462,15 @@
         [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (qq) { ctxG.add(box(0.04, 0.43, 0.04, mTable, cx + qq[0] * 0.17, 0.215, cz + qq[1] * 0.17)); });
       });
     }
-    for (var tx = x0 + 1.5; tx < FW / 2; tx += 3) for (var tz = -1.8; -tz < D - 0.9; tz -= 2.6) table(tx, tz);
-    ctxG.add(box(1.1, 0.7, 0.6, mStoneDk, x0 - 0.9, -0.5, 1.8));
-    [[x0 - 1.1, 0x2f6b3a, 0.28], [x0 - 0.8, 0x3b7d45, 0.25], [x0 - 0.95, 0xa8362a, 0.2]].forEach(function (f) {
+    [[0, -1.1], [0, -2.9], [-4, -1.3], [-4, -3.9], [-4, -6.5], [4, -1.3], [4, -3.9], [4, -6.5], [-1, -5.0], [1, -5.0], [-1, -7.0], [1, -7.0]].forEach(function (tb) { table(tb[0], tb[1]); });  // 12 mesas de 4 puestos: 2 dentro de la reja y 10 en el local
+    ctxG.add(box(1.1, 0.7, 0.6, mStoneDk, x0L - 0.9, -0.5, 1.8));
+    [[x0L - 1.1, 0x2f6b3a, 0.28], [x0L - 0.8, 0x3b7d45, 0.25], [x0L - 0.95, 0xa8362a, 0.2]].forEach(function (f) {
       var pl = new THREE.Mesh(new THREE.SphereGeometry(f[2], 12, 12), new THREE.MeshStandardMaterial({ color: f[1], roughness: 0.9 }));
       pl.position.set(f[0], -0.05 + f[2] * 0.5, 1.8); ctxG.add(pl);
     });
-    warm[0].position.set(-FW * 0.25, H - 0.3, -D * 0.3); warm[1].position.set(FW * 0.25, H - 0.3, -D * 0.3);
-    warm[2].position.set(-FW * 0.25, H - 0.3, -D * 0.75); warm[3].position.set(FW * 0.25, H - 0.3, -D * 0.75);
-    warm.forEach(function (l) { l.distance = Math.max(9, FW * 0.9); });
+    warm[0].position.set(-LW * 0.25, H - 0.3, -LD * 0.3); warm[1].position.set(LW * 0.25, H - 0.3, -LD * 0.3);
+    warm[2].position.set(-LW * 0.25, H - 0.3, -LD * 0.75); warm[3].position.set(LW * 0.25, H - 0.3, -LD * 0.75);
+    warm.forEach(function (l) { l.distance = Math.max(9, LW * 0.9); });
     spotF.position.set(0, H + 2.2, 4.5); spotF.target.position.set(0, H + 0.5, 0.1); spotF.distance = 16; spotF.angle = 1.0;
 
     // Frente: vanos de 4 m. Los vanos con puertas llevan fijo 1 m | puerta 1 m | puerta 1 m | fijo 1 m
@@ -1816,7 +1818,7 @@
   }
   var viewIdx = 0, viewNames = ['Vista 3D', 'Vista frente', 'Vista planta', 'Desde adentro'];
   function setView() {
-    var asp = camera.aspect, v = camera.fov * Math.PI / 360, D = P.D, FW = P.FW, Hh = P.H, f = freeArea().frac, pos, tgt;
+    var asp = camera.aspect, v = camera.fov * Math.PI / 360, D = 8, FW = 12, Hh = P.H, f = freeArea().frac, pos, tgt;
     if (viewIdx === 0) {
       tgt = V(0, Hh * 0.42, -D * 0.2);
       var d = Math.max((Hh * 0.8 + 1.2) / f / Math.tan(v), (FW * 0.5 + 1.0) / (asp * Math.tan(v))) + Math.max(D, FW) * 0.22;
