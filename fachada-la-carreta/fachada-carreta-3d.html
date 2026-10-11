@@ -1290,7 +1290,7 @@
   var mStoneDk = new THREE.MeshStandardMaterial({ color: 0x4a463f, roughness: 0.95 });
   var mRoof = new THREE.MeshStandardMaterial({ color: 0x2f3b3e, roughness: 0.8, transparent: true, opacity: 0.42, depthWrite: false });
   var mDark = new THREE.MeshStandardMaterial({ color: 0x15100b, roughness: 0.9 });
-  var mTv = new THREE.MeshStandardMaterial({ color: 0x2a4f80, emissive: 0x4a95e8, emissiveIntensity: 0.9, roughness: 0.3 });
+  var mTv = new THREE.MeshStandardMaterial({ color: 0x2a4f80, emissive: 0x2f6fc4, emissiveIntensity: 0.55, roughness: 0.3 });
   var mLamp = new THREE.MeshStandardMaterial({ color: 0xfff0d0, emissive: 0xffe0a8, emissiveIntensity: 1.2 });
   var lineMat = new THREE.LineBasicMaterial({ color: dark ? 0xede3d3 : 0x2a2118 });
 
@@ -1478,7 +1478,14 @@
       fg.add(box(0.1, 0.06, 0.1, mMetal, 0, 0, 0)); fg.add(box(0.025, 0.2, 0.025, mMetal, 0, 0.13, 0));
       ctxG.add(fg); fans.push(fbl);
     }
-    ctxG.add(box(0.95, 0.54, 0.05, mTv, FW * 0.25, 1.6, -D - 0.45));
+    // Televisores centrados en el pilar del medio: uno en el frente y otro en el fondo, mirando hacia adentro
+    function tv(x, z, dir) {
+      var g = new THREE.Group(); g.position.set(x, Math.min(1.9, H - 1.1), z + dir * 0.03);
+      g.add(box(1.0, 0.58, 0.05, mDark, 0, 0, 0));
+      var sc = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.5), mTv); sc.position.z = dir * 0.027; if (dir < 0) sc.rotation.y = Math.PI; g.add(sc);
+      ctxG.add(g);
+    }
+    if (nF % 2 === 0) { tv(x0 + bw * (nF / 2), -0.45, -1); tv(x0 + bw * (nF / 2), -D, 1); }
     for (var gi = 0; gi <= nF; gi++) glow(ctxG, x0 + gi * bw, 0.12, 0.1, 0.6);
     ctxG.add(box(1.1, 0.7, 0.6, mStoneDk, x0 - 0.9, -0.5, 1.8));
     [[x0 - 1.1, 0x2f6b3a, 0.28], [x0 - 0.8, 0x3b7d45, 0.25], [x0 - 0.95, 0xa8362a, 0.2]].forEach(function (f) {
