@@ -115,7 +115,7 @@
 <div id="stage"></div>
 <header>
   <h1>La Carreta · Fachada de tubo con puertas corredizas</h1>
-  <p id="sub">Frente 4,00 m · Alto 3,00 m · Fondo 4,00 m</p>
+  <p id="sub">Frente 8,00 m · Alto 3,00 m · Fondo 4,00 m</p>
 </header>
 <div id="hint">Arrastra para girar · pellizca para acercar</div>
 
@@ -159,7 +159,7 @@
 <section id="sheet" aria-label="Lista de materiales">
   <div class="sheethead"><h2>Lista de materiales</h2><button id="bCloseSheet" style="min-width:90px">Cerrar</button></div>
   <div class="params">
-    <div><label for="pFW">Frente (m)</label><input id="pFW" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
+    <div><label for="pFW">Frente (m)</label><input id="pFW" type="number" inputmode="decimal" step="0.5" min="2" value="8"></div>
     <div><label for="pD">Fondo (m)</label><input id="pD" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pH">Alto de la reja (m)</label><input id="pH" type="number" inputmode="decimal" step="0.1" min="2" value="3"></div>
     <div><label for="pBay">Distancia entre columnas (m)</label><input id="pBay" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
@@ -1238,7 +1238,7 @@
 (function () {
   var H = 4.0, LS = 1;                         // alto libre (m) y escala de rótulos
   var COL = 0.45;                              // ancho de la columna de madera: las rejas van entre columnas
-  var P = { FW: 4, D: 4, H: 3, bay: 4, doors: 'centro', gap: 0.12, t: 0.02, iva: 15 };
+  var P = { FW: 8, D: 4, H: 3, bay: 4, doors: 'centro', gap: 0.12, t: 0.02, iva: 15 };
   var E = 0.0015;                              // pared del tubo (1,5 mm en 20 y 25 mm; 2 mm en los demás)
   var Z_FIX = -0.02, Z_DOOR = -0.10;           // planos: fijos al frente, puertas detrás
   var D_Y0 = 0.08, D_H = H - 0.08 - 0.06;
@@ -1289,6 +1289,8 @@
   var mStone = new THREE.MeshStandardMaterial({ color: dark ? 0x6d665b : 0x8d867a, roughness: 0.95 });
   var mStoneDk = new THREE.MeshStandardMaterial({ color: 0x4a463f, roughness: 0.95 });
   var mRoof = new THREE.MeshStandardMaterial({ color: 0x2f3b3e, roughness: 0.8, transparent: true, opacity: 0.42, depthWrite: false });
+  var mDark = new THREE.MeshStandardMaterial({ color: 0x15100b, roughness: 0.9 });
+  var mTv = new THREE.MeshStandardMaterial({ color: 0x2a4f80, emissive: 0x4a95e8, emissiveIntensity: 0.9, roughness: 0.3 });
   var mLamp = new THREE.MeshStandardMaterial({ color: 0xfff0d0, emissive: 0xffe0a8, emissiveIntensity: 1.2 });
   var lineMat = new THREE.LineBasicMaterial({ color: dark ? 0xede3d3 : 0x2a2118 });
 
@@ -1336,7 +1338,7 @@
     sp.scale.set(s, s, 1); sp.position.set(x, y, z); sp.visible = nightOn; g.add(sp); glows.push(sp);
   }
   var dyn = new THREE.Group(); scene.add(dyn);
-  var ctxG, sideG, dimsG, doorsList = [], wheels = [], info = {};
+  var ctxG, sideG, dimsG, doorsList = [], wheels = [], fans = [], info = {};
   var vis = { sides: true, ctx: true, dims: true };
   var open = 0, openT = 0;
 
@@ -1396,6 +1398,9 @@
   function column(x) {
     var g = new THREE.Group();
     g.add(box(0.45, H, 0.45, mWood, x, H / 2, -0.225));
+    g.add(box(0.6, 0.16, 0.6, mStone, x, 0.08, -0.225));              // base de piedra como en la foto
+    g.add(box(0.52, 0.1, 0.52, mWoodLt, x, H - 0.05, -0.225));        // capitel
+    g.add(box(0.31, H - 0.45, 0.02, mDark, x, H / 2, 0.003));         // fondo oscuro: se ven los peldaños
     [-0.14, 0.14].forEach(function (dx) { g.add(box(0.035, H - 0.3, 0.03, mWoodLt, x + dx, H / 2, 0.012)); });
     for (var r = 0; r < 12; r++) g.add(box(0.28, 0.03, 0.03, mWoodLt, x, 0.25 + r * 0.22, 0.012));
     g.add(box(0.2, 0.06, 0.04, mLamp, x, 0.06, 0.02));
@@ -1415,7 +1420,7 @@
     sel.value = P.doors;
   }
   function rebuild() {
-    clear(dyn); wheels = []; doorsList = []; fasMats = [];
+    clear(dyn); wheels = []; doorsList = []; fasMats = []; fans = [];
     var t = P.t, D = P.D, FW = P.FW, bay = P.bay;
     H = P.H; D_H = H - 0.14; LS = Math.max(1, FW / 6);
     var pieces = [], doorPieces = [], fixedP = [], doorP = [], sideP = [], backP = [];
@@ -1460,6 +1465,18 @@
       var fl = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), mLamp); fl.position.set(lx, H + 0.12 + fh + 0.07, 0.22); ctxG.add(fl);
       glow(ctxG, lx, H + 0.12 + fh + 0.07, 0.22, 0.9);
     }
+    // Vigas de madera entre pilares, ventiladores de techo y TV al fondo, como en la foto
+    ctxG.add(box(FW + 0.45, 0.16, 0.2, mWood, 0, H - 0.02, -0.1));
+    ctxG.add(box(FW + 0.45, 0.16, 0.2, mWood, 0, H - 0.02, -D - 0.225));
+    [-1, 1].forEach(function (sd) { ctxG.add(box(0.2, 0.16, D + 0.45, mWood, sd * FW / 2, H - 0.02, -D / 2 - 0.225)); });
+    for (var fi = 0; fi < nF; fi++) {
+      var fg = new THREE.Group(); fg.position.set(x0 + bw * (fi + 0.5), H - 0.36, -D / 2 - 0.1);
+      var fbl = new THREE.Group(); fg.add(fbl);
+      for (var bk = 0; bk < 4; bk++) { var bl = box(0.62, 0.012, 0.1, mWoodLt, 0.34, 0, 0); var bp = new THREE.Group(); bp.rotation.y = bk * Math.PI / 2; bp.add(bl); fbl.add(bp); }
+      fg.add(box(0.1, 0.06, 0.1, mMetal, 0, 0, 0)); fg.add(box(0.025, 0.2, 0.025, mMetal, 0, 0.13, 0));
+      ctxG.add(fg); fans.push(fbl);
+    }
+    ctxG.add(box(0.95, 0.54, 0.05, mTv, FW * 0.25, 1.6, -D - 0.45));
     for (var gi = 0; gi <= nF; gi++) glow(ctxG, x0 + gi * bw, 0.12, 0.1, 0.6);
     ctxG.add(box(1.1, 0.7, 0.6, mStoneDk, x0 - 0.9, -0.5, 1.8));
     [[x0 - 1.1, 0x2f6b3a, 0.28], [x0 - 0.8, 0x3b7d45, 0.25], [x0 - 0.95, 0xa8362a, 0.2]].forEach(function (f) {
@@ -1784,7 +1801,7 @@
   document.getElementById('bCloseSheet').addEventListener('click', function () { sheet.classList.remove('show'); });
   function bindParam(id, fn) { document.getElementById(id).addEventListener('change', function (e) { fn(e.target.value); rebuild(); }); }
   bindParam('pD', function (v) { P.D = Math.min(60, Math.max(2, num(v) || 4)); });
-  bindParam('pFW', function (v) { P.FW = Math.min(60, Math.max(2, num(v) || 4)); });
+  bindParam('pFW', function (v) { P.FW = Math.min(60, Math.max(2, num(v) || 8)); });
   bindParam('pH', function (v) { P.H = Math.min(8, Math.max(2, num(v) || 3)); });
   bindParam('pBay', function (v) { P.bay = Math.min(10, Math.max(2, num(v) || 4)); });
   bindParam('pDoors', function (v) { P.doors = v; });
@@ -1867,6 +1884,7 @@
       slider.value = Math.round(open * 1000);
     }
     doorsList.forEach(function (d) { d.obj.position.x = d.x0 + d.dir * open * d.mw; });
+    fans.forEach(function (f) { f.rotation.y += dt * 2.4; });
     wheels.forEach(function (w) { w.p.rotation.z = -w.dir * open * w.mw / 0.04; });
     rOpen.textContent = fm(2 * open * (doorsList.length ? doorsList[0].mw : 0)) + ' m';
     controls.update(); renderer.render(scene, camera);
