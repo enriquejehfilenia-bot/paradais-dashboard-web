@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>La Carreta · Fachada de tubo con puertas corredizas · Visor 3D y proforma</title>
+<title>Fachada La Carreta</title>
 <style>
   :root {
     --bg: #E6E0D4; --ink: #2A2118; --line: #8A6A3E; --accent: #B5651D;
@@ -84,6 +84,11 @@
   tr.total td { font-weight: 650; border-bottom: none; }
   .note { font-size: 12px; opacity: .8; line-height: 1.5; }
   textarea { width: 100%; box-sizing: border-box; min-height: 150px; font: inherit; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+  #vid { position: fixed; inset: 0; background: rgba(10,8,6,.96); display: none; flex-direction: column; z-index: 20; }
+  #vid.show { display: flex; }
+  #vid .bar { padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 8px; }
+  #vid .bar button { width: 100%; color: #EDE3D3; border-color: rgba(237,227,211,.5); min-height: 38px; }
+  #vid video { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
   #photo { position: fixed; inset: 0; background: rgba(10,8,6,.95); display: none; flex-direction: column; z-index: 20; }
   #photo.show { display: flex; }
   #photo .bar { display: flex; gap: 6px; align-items: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 8px; }
@@ -95,7 +100,7 @@
   #photo a { color: #E39A4A; }
   @media print {
     html, body { height: auto; overflow: visible; background: #fff; color: #000; }
-    #stage, header, #panel, #hint, #photo, .sheethead button, #bCopy, #bXlsx, #bPdf, #wa, textarea, h3.wa { display: none !important; }
+    #stage, header, #panel, #hint, #photo, #vid, .sheethead button, #bCopy, #bXlsx, #bPdf, #wa, textarea, h3.wa { display: none !important; }
     #sheet { position: static; display: block !important; overflow: visible; padding: 0; background: #fff; }
     .sheethead { position: static; }
     .params { display: none; }
@@ -129,6 +134,7 @@
       <button id="bToggle">Abrir</button>
       <button id="bView">Vista 3D</button>
       <button id="bPhoto">Imagen</button>
+      <button id="bVideo">Video</button>
       <button id="bBom" class="primary">Proforma</button>
     </div>
     <div class="chips">
@@ -138,6 +144,11 @@
       <button id="bNight" aria-pressed="true">Noche</button>
     </div>
   </div>
+</section>
+
+<section id="vid" aria-label="Video del recorrido">
+  <div class="bar"><button id="vidClose">Cerrar</button></div>
+  <video id="vidEl" src="recorrido-fachada-la-carreta.mp4" controls playsinline preload="metadata"></video>
 </section>
 
 <section id="photo" aria-label="Imágenes de cómo se vería">
@@ -1710,11 +1721,22 @@
     return zipStore(files);
   }
   function download(blob, name) {
+    // Dentro de claude.ai el navegador bloquea las descargas directas: se usa la capacidad "downloads"
+    if (window.claude && window.claude.use) {
+      window.claude.use('downloads').then(function (d) {
+        if (d) d.save({ filename: name, data: blob }).catch(function () {});
+      });
+      return;
+    }
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   }
   document.getElementById('bXlsx').addEventListener('click', function () { download(buildXlsx(), 'proforma-fachada-la-carreta.xlsx'); });
+  if (window.claude && window.claude.use) document.getElementById('bPdf').style.display = 'none';  // imprimir no funciona dentro de claude.ai
   document.getElementById('bPdf').addEventListener('click', function () { window.print(); });
+  var vid = document.getElementById('vid'), vidEl = document.getElementById('vidEl');
+  document.getElementById('bVideo').addEventListener('click', function () { vid.classList.add('show'); vidEl.play && vidEl.play().catch(function () {}); });
+  document.getElementById('vidClose').addEventListener('click', function () { vid.classList.remove('show'); vidEl.pause(); });
 
   // ---------- Controles ----------
   var slider = document.getElementById('slider'), rOpen = document.getElementById('rOpen');
