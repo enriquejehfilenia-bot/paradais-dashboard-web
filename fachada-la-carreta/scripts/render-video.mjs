@@ -1,6 +1,6 @@
 // Recorrido del visor 3D: captura cuadro por cuadro con Playwright y luego ffmpeg arma el MP4.
 import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 const [file, frames] = process.argv.slice(2);
 mkdirSync(frames, { recursive: true });
 const FPS = 24;
@@ -26,15 +26,15 @@ function at(t) {
   const L = (x, y) => x.map((v, j) => v + (y[j] - v) * e);
   return { p: L(a[1], b[1]), t: L(a[2], b[2]), o: a[3] + (b[3] - a[3]) * e };
 }
-const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const pg = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
 await pg.goto('file://' + file); await pg.waitForTimeout(1500);
 await pg.evaluate(() => { __api.hideUI(true); __api.setDims(false); });
 const N = Math.round(K[K.length - 1][0] * FPS);
 for (let f = 0; f < N; f++) {
   const s = at(f / FPS);
-  await pg.evaluate(s => { __api.setOpen(s.o); __api.setCam(s.p, s.t, 45); return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); }, s);
-  await pg.screenshot({ path: `${frames}/f${String(f).padStart(4, '0')}.jpg`, type: 'jpeg', quality: 90 });
+  const url = await pg.evaluate(s => { __api.setOpen(s.o); __api.setCam(s.p, s.t, 45); return __api.shot(); }, s);
+  writeFileSync(`${frames}/f${String(f).padStart(4, '0')}.jpg`, Buffer.from(url.split(',')[1], 'base64'));
   if (f % 48 === 0) console.log(f + '/' + N);
 }
 await b.close();

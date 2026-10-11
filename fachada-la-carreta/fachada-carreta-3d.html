@@ -1820,6 +1820,7 @@
     setCam: function (p, t, fov) { camera.fov = fov || camera.fov; camera.clearViewOffset(); camera.updateProjectionMatrix(); camera.position.set(p[0], p[1], p[2]); controls.target.set(t[0], t[1], t[2]); controls.update(); },
     setDims: function (on) { vis.dims = on; dimsG.visible = on; },
     hideUI: function (on) { ['header', '#panel', '#hint'].forEach(function (s) { document.querySelector(s).style.display = on ? 'none' : ''; }); },
+    shot: function () { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/jpeg', 0.9); },
     setSize: function (w, hh) { renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix(); }
   };
 
