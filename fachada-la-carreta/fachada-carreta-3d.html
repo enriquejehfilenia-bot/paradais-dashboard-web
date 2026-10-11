@@ -1405,7 +1405,7 @@
   // Con un solo tramo al frente solo hay dos opciones reales: con puerta o sin puerta
   function syncDoorOptions(nF) {
     var sel = document.getElementById('pDoors'), opts = nF === 1
-      ? [['centro', 'Con puerta corrediza'], ['ninguna', 'Sin puerta']]
+      ? [['centro', 'Con puerta'], ['ninguna', 'Sin puerta']]
       : [['centro', 'Al centro del frente'], ['todas', 'En todo el frente'], ['izq', 'A la izquierda del frente'], ['der', 'A la derecha del frente'], ['ninguna', 'Sin puerta']];
     if (nF === 1 && P.doors !== 'ninguna') P.doors = 'centro';
     if (sel.dataset.n !== String(nF === 1 ? 1 : 2)) {
