@@ -9,6 +9,6 @@
 Dentro del visor, la proforma tiene botones **Excel (.xlsx)** y **PDF / Imprimir** que usan los precios que escribas.
 
 ## Supuestos vigentes (verificar en obra)
-- Una sola puerta corrediza, en el vano central (dos hojas que se esconden detras de los fijos y se juntan al centro); los otros 2 vanos del frente son fijos.
+- Frente 4 m y fondo 4 m: un solo vano al frente (con la puerta corrediza: dos hojas que se esconden detras de los fijos y se juntan al centro) y un vano fijo en el costado derecho.
 - Vano de 4 m medido de centro a centro de columna; columnas de 45 cm, por lo que cada reja mide 3,55 m entre columnas.
 - Tubo 20 × 20 × 1,5 mm.
