@@ -163,9 +163,9 @@
     <div><label for="pFW">Frente (m)</label><input id="pFW" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pD">Fondo (m)</label><input id="pD" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pH">Alto de la reja (m)</label><input id="pH" type="number" inputmode="decimal" step="0.1" min="2" value="3"></div>
-    <div><label for="pBay">Ancho de cada vano (m)</label><input id="pBay" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
+    <div><label for="pBay">Distancia entre columnas (m)</label><input id="pBay" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pDoors">Puertas corredizas en</label>
-      <select id="pDoors"><option value="centro" selected>El vano del centro</option><option value="todas">Todos los vanos</option><option value="izq">Vano izquierdo</option><option value="der">Vano derecho</option><option value="ninguna">Ninguno</option></select></div>
+      <select id="pDoors"><option value="centro" selected>Al centro del frente</option><option value="todas">En todo el frente</option><option value="izq">A la izquierda del frente</option><option value="der">A la derecha del frente</option><option value="ninguna">Sin puerta</option></select></div>
     <div><label for="pGap">Separación mínima entre tubos (cm)</label><input id="pGap" type="number" inputmode="decimal" step="0.5" min="5" value="12"></div>
     <div><label for="pT">Tubo cuadrado</label>
       <select id="pT"><option value="20|1.5" selected>20 × 20 × 1,5 mm</option><option value="25|1.5">25 × 25 × 1,5 mm</option><option value="30|2">30 × 30 × 2 mm</option><option value="40|2">40 × 40 × 2 mm</option><option value="50|2">50 × 50 × 2 mm</option></select></div>
@@ -1475,7 +1475,7 @@
     warm.forEach(function (l) { l.distance = Math.max(9, FW * 0.9); });
     spotF.position.set(0, H + 2.2, 4.5); spotF.target.position.set(0, H + 0.5, 0.1); spotF.distance = 16; spotF.angle = 1.0;
 
-    // Frente: vanos de 4 m. Los vanos con puertas llevan fijo 1 m | puerta 1 m | puerta 1 m | fijo 1 m
+    // Frente: tramos de reja entre columnas (4 m c/c). El tramo con puerta lleva fijo 1 m | puerta 1 m | puerta 1 m | fijo 1 m
     for (var i = 0; i < nF; i++) {
       var bx = x0 + i * bw, cxm = bx + bw / 2;
       if (doorBays.indexOf(i) < 0) {
@@ -1578,13 +1578,13 @@
     function add(id, desc, qty, unit, note) { items.push({ id: id, desc: desc, qty: qty, unit: unit, note: note || '' }); }
     add('tubo', 'Tubo cuadrado ' + tm + '×' + tm + '×' + fm(E * 1000, 1) + ' mm, barra de 6 m', pk.n, 'barras', (SHOW_PRICES && tm <= 25 ? 'Precio base: $7,50 por barra (tu dato) · ' : '') + 'sobrante ' + fm(pk.waste) + ' m' + (pk.splices ? ' · ' + pk.splices + ' empalme(s)' : ''));
     if (nDB) {
-      add('varilla', 'Varilla lisa 5/8″ (riel inferior), barra de 6 m', nDB, 'barras', 'Un riel de ' + fm(info.cw) + ' m (luz entre columnas) por vano con puertas');
-      add('canal', 'Canal U 80×40×3 mm (guía superior), barra de 6 m', nDB, 'barras', 'Una guía de ' + fm(info.cw) + ' m (luz entre columnas) por vano con puertas');
+      add('varilla', 'Varilla lisa 5/8″ (riel inferior), barra de 6 m', nDB, 'barras', 'Un riel de ' + fm(info.cw) + ' m (entre columnas) por puerta corrediza');
+      add('canal', 'Canal U 80×40×3 mm (guía superior), barra de 6 m', nDB, 'barras', 'Una guía de ' + fm(info.cw) + ' m (entre columnas) por puerta corrediza');
       add('ruedas', 'Ruedas con garganta en V Ø80 mm, rodamiento sellado, ≥100 kg', 4 * nDB, 'u', '2 por puerta');
       add('rodillos', 'Rodillos guía de nylon para la guía superior', 4 * nDB, 'u', '2 por puerta');
       add('topes', 'Topes de apertura (platina + goma)', 4 * nDB, 'u', '');
       add('pasador', 'Pasador de piso para puerta corrediza', 2 * nDB, 'u', '');
-      add('cerradura', 'Cerradura de gancho con candado', nDB, 'u', 'Sobre el cierre central de cada vano');
+      add('cerradura', 'Cerradura de gancho con candado', nDB, 'u', 'Sobre el cierre central de la puerta');
       add('jaladera', 'Jaladera tubular para puerta', 2 * nDB, 'u', '');
     }
     add('platinas', 'Platina de anclaje 100×100×6 mm', plates, 'u', anchors + ' en paneles' + (railPlates ? ' + ' + railPlates + ' bajo los rieles' : ''));
@@ -1618,13 +1618,13 @@
 
     var gf = info.fixedP.length ? info.fixedP[0].gap : 0.12, kf = info.fixedP.length ? info.fixedP[0].k : 0;
     document.getElementById('summary').innerHTML =
-      '<b>Frente:</b> ' + info.nF + (info.nF === 1 ? ' vano de ' : ' vanos de ') + fm(info.bw) + ' m (' + fm(info.cw) + ' m libres entre columnas), ' + nDB + (nDB === 1 ? ' con puerta corrediza.' : ' con puertas corredizas.')+' ' + (kf ? 'Panel fijo de ' + fm(info.fixedP[0].w) + ' m: ' + kf + ' tubos, separación real ' + fm(gf * 100, 1) + ' cm.<br>' : '<br>') +
-      '<b>Cerrado por los 4 lados</b> (opción de menor costo, separación mínima ' + fm(P.gap * 100, 0) + ' cm): costados de ' + info.nS + (info.nS === 1 ? ' vano' : ' vanos') + ' de ' + fm(info.sw) + ' m con ' + info.sideP[0].k + ' tubos por vano (separación real ' + fm(info.sideP[0].gap * 100, 1) + ' cm); fondo de ' + info.nF + (info.nF === 1 ? ' vano' : ' vanos') + '.<br>' +
+      '<b>Frente:</b> ' + (info.nF === 1 ? fm(info.bw) + ' m' : info.nF + ' tramos de ' + fm(info.bw) + ' m') + ' (' + fm(info.cw) + ' m libres entre columnas), ' + (nDB === 0 ? 'sin puerta.' : nDB === 1 ? 'con puerta corrediza.' : 'con puerta corrediza en ' + nDB + ' tramos.') + ' ' + (kf ? 'Cada reja fija de ' + fm(info.fixedP[0].w) + ' m: ' + kf + ' tubos, separación real ' + fm(gf * 100, 1) + ' cm.<br>' : '<br>') +
+      '<b>Cerrado por los 4 lados</b> (opción de menor costo, separación mínima ' + fm(P.gap * 100, 0) + ' cm): costados de ' + fm(P.D) + ' m con ' + info.sideP[0].k + ' tubos' + (info.nS > 1 ? ' por tramo' : '') + ' (separación real ' + fm(info.sideP[0].gap * 100, 1) + ' cm); fondo de ' + fm(P.FW) + ' m.<br>' +
       '<b>' + info.tubeLine.split(':')[0] + ':</b> ' + info.tubeLine.split(': ')[1] + '.<br>' +
       '<b>Tubo total:</b> ' + fm(totalLen, 1) + ' m' + (nDB ? ' · <b>Peso de cada puerta:</b> unos ' + Math.round(doorKg + 6) + ' kg con herrajes.' : '.');
     document.getElementById('notes').innerHTML =
-      'Supuestos: los ' + fm(P.bay) + ' m de cada vano se miden de centro a centro de columna y las columnas de madera son de ' + Math.round(COL * 100) + ' cm, por lo que cada reja mide ' + fm(info.cw) + ' m entre columnas (verificar con cinta en obra); tubo negro pintado de pared ' + fm(E * 1000, 1) + ' mm; ' +
-      'en cada vano con puertas, al cerrarse quedan dos tubos juntos en el centro. Con tubo de 25 mm o menos en paneles altos, los travesaños del medio son los que evitan que vibre. ' +
+      'Supuestos: los ' + fm(P.bay) + ' m entre columnas se miden de centro a centro y las columnas de madera son de ' + Math.round(COL * 100) + ' cm, por lo que cada reja mide ' + fm(info.cw) + ' m entre columnas (verificar con cinta en obra); tubo negro pintado de pared ' + fm(E * 1000, 1) + ' mm; ' +
+      'en la puerta corrediza, al cerrarse quedan dos tubos juntos en el centro. Con tubo de 25 mm o menos en paneles altos, los travesaños del medio son los que evitan que vibre. ' +
       (SHOW_PRICES ? 'El único precio cargado es el del tubo; escribe los demás. El IVA es editable; verifica el vigente.' : 'Lista de cantidades de material, sin precios.');
     renderBom();
   }
