@@ -1405,6 +1405,18 @@
     return g;
   }
 
+  // Con un solo tramo al frente solo hay dos opciones reales: con puerta o sin puerta
+  function syncDoorOptions(nF) {
+    var sel = document.getElementById('pDoors'), opts = nF === 1
+      ? [['centro', 'Con puerta corrediza'], ['ninguna', 'Sin puerta']]
+      : [['centro', 'Al centro del frente'], ['todas', 'En todo el frente'], ['izq', 'A la izquierda del frente'], ['der', 'A la derecha del frente'], ['ninguna', 'Sin puerta']];
+    if (nF === 1 && P.doors !== 'ninguna') P.doors = 'centro';
+    if (sel.dataset.n !== String(nF === 1 ? 1 : 2)) {
+      sel.innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('');
+      sel.dataset.n = String(nF === 1 ? 1 : 2);
+    }
+    sel.value = P.doors;
+  }
   function rebuild() {
     clear(dyn); wheels = []; doorsList = []; fasMats = [];
     var t = P.t, D = P.D, FW = P.FW, bay = P.bay;
@@ -1414,6 +1426,7 @@
     ctxG = new THREE.Group(); sideG = new THREE.Group(); dimsG = new THREE.Group();
     dyn.add(ctxG); dyn.add(sideG); dyn.add(dimsG);
     var nF = Math.max(1, Math.round(FW / bay)), nS = Math.max(1, Math.round(D / bay));
+    syncDoorOptions(nF);
     var bw = FW / nF, sw = D / nS, x0 = -FW / 2, cw = bw - COL, mw = cw / 4;   // cw: luz libre entre columnas
     var doorBays = [];
     for (var q = 0; q < nF; q++) {
@@ -1423,22 +1436,23 @@
     // Entorno: terraza, escalones, columnas, frente de madera con rótulo, losa, lámparas, mesas y jardinera
     for (var ci = 0; ci <= nF; ci++) ctxG.add(column(x0 + ci * bw));
     function plainColumn(x, z) { ctxG.add(box(0.45, H, 0.45, mWood, x, H / 2, z)); }
-    for (var cj = 1; cj <= nS; cj++) { plainColumn(x0, -cj * sw); plainColumn(FW / 2, -cj * sw); }
-    for (var ck = 1; ck < nF; ck++) plainColumn(x0 + ck * bw, -D);
-    var floor = box(FW + 1.4, 0.85, D + 0.8, mFloor, 0, -0.425, 0.4 - D / 2); floor.castShadow = false; ctxG.add(floor);
+    var Dc = D + 0.225;   // la columna del frente tiene su centro a 0,225 m: el fondo se mide entre centros de columna
+    for (var cj = 1; cj <= nS; cj++) { plainColumn(x0, -cj * sw - 0.225); plainColumn(FW / 2, -cj * sw - 0.225); }
+    for (var ck = 1; ck < nF; ck++) plainColumn(x0 + ck * bw, -D - 0.225);
+    var floor = box(FW + 1.4, 0.85, Dc + 0.8, mFloor, 0, -0.425, 0.4 - Dc / 2); floor.castShadow = false; ctxG.add(floor);
     for (var s = 1; s <= 4; s++) {
       var top = -0.17 * s, hh = top + 0.85;
       ctxG.add(box(FW + 1.4, hh, 0.4, mStone, 0, top - hh / 2, 0.8 + 0.4 * (s - 0.5)));
     }
-    var roof = box(FW + 0.9, 0.12, D + 0.1, mRoof, 0, H + 0.06, 0.05 - D / 2); roof.castShadow = false; ctxG.add(roof);
+    var roof = box(FW + 0.9, 0.12, Dc + 0.1, mRoof, 0, H + 0.06, 0.05 - Dc / 2); roof.castShadow = false; ctxG.add(roof);
     var fh = Math.max(0.75, (FW + 0.9) / 9), fy = H + 0.12 + fh / 2;
-    var matF = fasciaMat((FW + 0.86) / fh), matS = fasciaMat((D + 0.06) / fh);
+    var matF = fasciaMat((FW + 0.86) / fh), matS = fasciaMat((Dc + 0.06) / fh);
     ctxG.add(box(FW + 0.9, fh, 0.1, mTeal, 0, fy, 0.05));
     var fp = new THREE.Mesh(new THREE.PlaneGeometry(FW + 0.86, fh - 0.05), matF); fp.position.set(0, fy, 0.101); ctxG.add(fp);
     [-1, 1].forEach(function (sd) {
-      ctxG.add(box(0.1, fh, D + 0.1, mTeal, sd * (FW / 2 + 0.45), fy, 0.05 - D / 2));
-      var sp = new THREE.Mesh(new THREE.PlaneGeometry(D + 0.06, fh - 0.05), matS);
-      sp.rotation.y = sd * Math.PI / 2; sp.position.set(sd * (FW / 2 + 0.501), fy, 0.05 - D / 2); ctxG.add(sp);
+      ctxG.add(box(0.1, fh, Dc + 0.1, mTeal, sd * (FW / 2 + 0.45), fy, 0.05 - Dc / 2));
+      var sp = new THREE.Mesh(new THREE.PlaneGeometry(Dc + 0.06, fh - 0.05), matS);
+      sp.rotation.y = sd * Math.PI / 2; sp.position.set(sd * (FW / 2 + 0.501), fy, 0.05 - Dc / 2); ctxG.add(sp);
     });
     glows = [];
     for (var lx = x0 + 1.5; lx < FW / 2; lx += 3) {
@@ -1505,13 +1519,13 @@
     // Cerrado por los 4 lados: frente (con la puerta), costado derecho, costado izquierdo y fondo, todo de reja fija
     [['Der', 1], ['Izq', -1]].forEach(function (sd) {
       for (var j = 0; j < nS; j++) {
-        var sl = sw - COL - (j === 0 ? 0.225 : 0), ps = makePanel(sl, H, mFix, pieces, sd[0]);
-        ps.group.rotation.y = Math.PI / 2; ps.group.position.set(sd[1] * (FW / 2 - 0.02), 0, -(j === 0 ? COL : j * sw + COL / 2));
+        var ps = makePanel(cw, H, mFix, pieces, sd[0]);
+        ps.group.rotation.y = Math.PI / 2; ps.group.position.set(sd[1] * (FW / 2 - 0.02), 0, -(COL + j * sw));
         sideG.add(ps.group); sideP.push(ps);
       }
     });
     for (var bi = 0; bi < nF; bi++) {
-      var pb = makePanel(cw, H, mFix, pieces, 'Fondo'); pb.group.position.set(x0 + bi * bw + COL / 2, 0, -D); sideG.add(pb.group); backP.push(pb);
+      var pb = makePanel(cw, H, mFix, pieces, 'Fondo'); pb.group.position.set(x0 + bi * bw + COL / 2, 0, -D - 0.225); sideG.add(pb.group); backP.push(pb);
     }
 
     // Cotas y rótulos
