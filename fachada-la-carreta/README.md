@@ -9,7 +9,7 @@
 Dentro del visor, las medidas se aplican con el botón **Calcular** (o Enter). La lista de materiales tiene botones **Excel (.xlsx)** y **PDF / Imprimir**.
 
 ## Supuestos vigentes (verificar en obra)
-- Estructura de 8 × 8 m (frente 8 m, fondo 8 m), 3 pilares por lado y 2 tramos de 4 m por lado, cerrada por los 4 lados con reja de tubo. Una puerta corrediza en cada tramo del frente (2 puertas, cada una de 2 hojas que se juntan al centro); costados y pared trasera fijos.
+- Estructura de 8 × 8 m (frente 8 m, fondo 8 m), 3 pilares por lado y 2 tramos de 4 m por lado, cerrada por los 4 lados con reja de tubo. Una puerta corrediza en cada tramo del frente (2 puertas, cada una de 2 hojas que se juntan al centro); costados y pared trasera fijos (la pared trasera también en 2 tramos, con el pilar del medio ancho de madera y el televisor).
 - Los 4 m entre pilares se miden de centro a centro. Pilares del frente: madera de 45 cm (reja de 3,55 m). Pilares de los costados y de la pared trasera: metal delgado de 12 cm.
 - Alto de la reja: 3 m.
 - Tubo 20 × 20 × 1,5 mm.
