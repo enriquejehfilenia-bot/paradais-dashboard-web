@@ -165,7 +165,7 @@
     <div><label for="pH">Alto de la reja (m)</label><input id="pH" type="number" inputmode="decimal" step="0.1" min="2" value="4"></div>
     <div><label for="pBay">Ancho de cada vano (m)</label><input id="pBay" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pDoors">Puertas corredizas en</label>
-      <select id="pDoors"><option value="centro">El vano del centro</option><option value="todas" selected>Todos los vanos</option><option value="izq">Vano izquierdo</option><option value="der">Vano derecho</option><option value="ninguna">Ninguno</option></select></div>
+      <select id="pDoors"><option value="centro" selected>El vano del centro</option><option value="todas">Todos los vanos</option><option value="izq">Vano izquierdo</option><option value="der">Vano derecho</option><option value="ninguna">Ninguno</option></select></div>
     <div><label for="pGap">Separación mínima entre tubos (cm)</label><input id="pGap" type="number" inputmode="decimal" step="0.5" min="5" value="12"></div>
     <div><label for="pT">Tubo cuadrado</label>
       <select id="pT"><option value="20|1.5" selected>20 × 20 × 1,5 mm</option><option value="25|1.5">25 × 25 × 1,5 mm</option><option value="30|2">30 × 30 × 2 mm</option><option value="40|2">40 × 40 × 2 mm</option><option value="50|2">50 × 50 × 2 mm</option></select></div>
@@ -1241,7 +1241,7 @@
 (function () {
   var H = 4.0, LS = 1;                         // alto libre (m) y escala de rótulos
   var COL = 0.45;                              // ancho de la columna de madera: las rejas van entre columnas
-  var P = { FW: 12, D: 8, H: 4, bay: 4, doors: 'todas', gap: 0.12, t: 0.02, iva: 15 };
+  var P = { FW: 12, D: 8, H: 4, bay: 4, doors: 'centro', gap: 0.12, t: 0.02, iva: 15 };
   var E = 0.0015;                              // pared del tubo (1,5 mm en 20 y 25 mm; 2 mm en los demás)
   var Z_FIX = -0.02, Z_DOOR = -0.10;           // planos: fijos al frente, puertas detrás
   var D_Y0 = 0.08, D_H = H - 0.08 - 0.06;
