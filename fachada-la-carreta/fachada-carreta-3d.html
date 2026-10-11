@@ -135,7 +135,7 @@
       <button id="bView">Vista 3D</button>
       <button id="bPhoto">Imagen</button>
       <button id="bVideo" hidden>Video</button>
-      <button id="bBom" class="primary">Proforma</button>
+      <button id="bBom" class="primary">Materiales</button>
     </div>
     <div class="chips">
       <button id="bSides" aria-pressed="true">Lados</button>
@@ -157,8 +157,8 @@
   <div class="foot">Montaje sobre la foto real del local, medidas aproximadas · Mantén presionada la imagen para guardarla · <a id="phDl" download="fachada-la-carreta.jpg">Descargar</a></div>
 </section>
 
-<section id="sheet" aria-label="Proforma de materiales">
-  <div class="sheethead"><h2>Proforma de materiales</h2><button id="bCloseSheet" style="min-width:90px">Cerrar</button></div>
+<section id="sheet" aria-label="Lista de materiales">
+  <div class="sheethead"><h2>Lista de materiales</h2><button id="bCloseSheet" style="min-width:90px">Cerrar</button></div>
   <div class="params">
     <div><label for="pFW">Frente (m)</label><input id="pFW" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
     <div><label for="pD">Fondo (m)</label><input id="pD" type="number" inputmode="decimal" step="0.5" min="2" value="4"></div>
@@ -169,10 +169,10 @@
     <div><label for="pGap">Separación mínima entre tubos (cm)</label><input id="pGap" type="number" inputmode="decimal" step="0.5" min="5" value="12"></div>
     <div><label for="pT">Tubo cuadrado</label>
       <select id="pT"><option value="20|1.5" selected>20 × 20 × 1,5 mm</option><option value="25|1.5">25 × 25 × 1,5 mm</option><option value="30|2">30 × 30 × 2 mm</option><option value="40|2">40 × 40 × 2 mm</option><option value="50|2">50 × 50 × 2 mm</option></select></div>
-    <div><label for="pIva">IVA (%)</label><input id="pIva" type="number" inputmode="decimal" step="1" min="0" value="15"></div>
+    <div id="ivaBox" hidden><label for="pIva">IVA (%)</label><input id="pIva" type="number" inputmode="decimal" step="1" min="0" value="15"></div>
   </div>
   <p class="note" id="summary"></p>
-  <h3>Materiales</h3>
+  <h3>Materiales que se van</h3>
   <table id="bom"></table>
   <h3>Cuánto tubo se va, por parte</h3>
   <table id="parts"></table>
@@ -1245,6 +1245,7 @@
   var E = 0.0015;                              // pared del tubo (1,5 mm en 20 y 25 mm; 2 mm en los demás)
   var Z_FIX = -0.02, Z_DOOR = -0.10;           // planos: fijos al frente, puertas detrás
   var D_Y0 = 0.08, D_H = H - 0.08 - 0.06;
+  var SHOW_PRICES = false;                     // por ahora solo cantidades de material; true vuelve a mostrar precios, IVA y totales
   var DEFAULT_PRICE = { tubo: 7.5 };           // $ por barra de 6 m (dato del cliente)
   var nightOn = true;
   var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1575,7 +1576,7 @@
     var rodsLb = Math.max(1, Math.ceil(rodsEst));
     items = [];
     function add(id, desc, qty, unit, note) { items.push({ id: id, desc: desc, qty: qty, unit: unit, note: note || '' }); }
-    add('tubo', 'Tubo cuadrado ' + tm + '×' + tm + '×' + fm(E * 1000, 1) + ' mm, barra de 6 m', pk.n, 'barras', (tm <= 25 ? 'Precio base: $7,50 por barra (tu dato) · ' : '') + 'sobrante ' + fm(pk.waste) + ' m' + (pk.splices ? ' · ' + pk.splices + ' empalme(s)' : ''));
+    add('tubo', 'Tubo cuadrado ' + tm + '×' + tm + '×' + fm(E * 1000, 1) + ' mm, barra de 6 m', pk.n, 'barras', (SHOW_PRICES && tm <= 25 ? 'Precio base: $7,50 por barra (tu dato) · ' : '') + 'sobrante ' + fm(pk.waste) + ' m' + (pk.splices ? ' · ' + pk.splices + ' empalme(s)' : ''));
     if (nDB) {
       add('varilla', 'Varilla lisa 5/8″ (riel inferior), barra de 6 m', nDB, 'barras', 'Un riel de ' + fm(info.cw) + ' m (luz entre columnas) por vano con puertas');
       add('canal', 'Canal U 80×40×3 mm (guía superior), barra de 6 m', nDB, 'barras', 'Una guía de ' + fm(info.cw) + ' m (luz entre columnas) por vano con puertas');
@@ -1624,11 +1625,12 @@
     document.getElementById('notes').innerHTML =
       'Supuestos: los ' + fm(P.bay) + ' m de cada vano se miden de centro a centro de columna y las columnas de madera son de ' + Math.round(COL * 100) + ' cm, por lo que cada reja mide ' + fm(info.cw) + ' m entre columnas (verificar con cinta en obra); tubo negro pintado de pared ' + fm(E * 1000, 1) + ' mm; ' +
       'en cada vano con puertas, al cerrarse quedan dos tubos juntos en el centro. Con tubo de 25 mm o menos en paneles altos, los travesaños del medio son los que evitan que vibre. ' +
-      'El único precio cargado es el del tubo; escribe los demás. El IVA es editable; verifica el vigente.';
+      (SHOW_PRICES ? 'El único precio cargado es el del tubo; escribe los demás. El IVA es editable; verifica el vigente.' : 'Lista de cantidades de material, sin precios.');
     renderBom();
   }
   function loadPrice(id) {
     var v = '';
+    if (!SHOW_PRICES) return v;
     try { v = localStorage.getItem('carreta_p_' + id) || ''; } catch (e) {}
     if (!v && DEFAULT_PRICE[id] && (id !== 'tubo' || P.t <= 0.0251)) v = fm(DEFAULT_PRICE[id]);
     return v;
@@ -1636,14 +1638,14 @@
   function savePrice(id, v) { try { localStorage.setItem('carreta_p_' + id, v); } catch (e) {} }
   function num(s) { var n = parseFloat(String(s).replace(',', '.')); return isNaN(n) ? 0 : n; }
   function renderBom() {
-    var h = '<tr><th>Material</th><th class="n">Cant.</th><th class="n">P. unit. ($)</th><th class="n">Total</th></tr>';
+    var h = SHOW_PRICES ? '<tr><th>Material</th><th class="n">Cant.</th><th class="n">P. unit. ($)</th><th class="n">Total</th></tr>' : '<tr><th>Material</th><th class="n">Cantidad</th></tr>';
     items.forEach(function (it, i) {
       h += '<tr><td>' + it.desc + (it.note ? '<small>' + it.note + '</small>' : '') + '</td>' +
            '<td class="n">' + it.qty + '<small>' + it.unit + '</small></td>' +
-           '<td class="n"><input data-i="' + i + '" inputmode="decimal" placeholder="0,00" value="' + loadPrice(it.id) + '" aria-label="Precio unitario"></td>' +
-           '<td class="n" id="t' + i + '">–</td></tr>';
+           (SHOW_PRICES ? '<td class="n"><input data-i="' + i + '" inputmode="decimal" placeholder="0,00" value="' + loadPrice(it.id) + '" aria-label="Precio unitario"></td>' +
+           '<td class="n" id="t' + i + '">–</td>' : '') + '</tr>';
     });
-    h += '<tr class="total"><td colspan="3">Subtotal</td><td class="n" id="tSub">–</td></tr>' +
+    if (SHOW_PRICES) h += '<tr class="total"><td colspan="3">Subtotal</td><td class="n" id="tSub">–</td></tr>' +
          '<tr class="total"><td colspan="3">IVA</td><td class="n" id="tIva">–</td></tr>' +
          '<tr class="total"><td colspan="3">Total</td><td class="n" id="tTot">–</td></tr>';
     document.getElementById('bom').innerHTML = h;
@@ -1654,6 +1656,12 @@
   }
   function money(n) { return '$' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   function totals() {
+    if (!SHOW_PRICES) {
+      var t0 = 'Lista de materiales — Fachada La Carreta (tubo cuadrado)\nFrente ' + fm(P.FW) + ' m · Alto ' + fm(P.H) + ' m · Fondo ' + fm(P.D) + ' m · Tubo ' + Math.round(P.t * 1000) + '×' + Math.round(P.t * 1000) + ' mm\n\n' + info.tubeLine + '. Cerrado por los 4 lados.\n\n';
+      items.forEach(function (it) { t0 += '• ' + it.desc + ': ' + it.qty + ' ' + it.unit + '\n'; });
+      document.getElementById('wa').value = t0;
+      return;
+    }
     var sub = 0;
     items.forEach(function (it, i) {
       var inp = document.querySelector('#bom input[data-i="' + i + '"]');
@@ -1665,7 +1673,6 @@
     document.getElementById('tIva').textContent = sub ? money(iva) : '–';
     document.getElementById('tTot').textContent = sub ? money(sub + iva) : '–';
     var txt = 'Proforma de materiales — Fachada La Carreta (tubo cuadrado)\nFrente ' + fm(P.FW) + ' m · Alto ' + fm(P.H) + ' m · Fondo ' + fm(P.D) + ' m · Tubo ' + Math.round(P.t * 1000) + '×' + Math.round(P.t * 1000) + ' mm\n\n';
-    txt += info.tubeLine + '. Cerrado por los 4 lados.\n\n';
     txt += info.tubeLine + '. Cerrado por los 4 lados.\n\n';
     items.forEach(function (it, i) {
       var inp = document.querySelector('#bom input[data-i="' + i + '"]'), p = num(inp ? inp.value : 0);
@@ -1713,19 +1720,24 @@
     return x + '</sheetData></worksheet>';
   }
   function buildXlsx() {
-    var B = { s: 1 }, M = 2, rows = [[{ v: 'Proforma de materiales — Fachada La Carreta', s: 1 }]];
+    var B = { s: 1 }, M = 2, rows = [[{ v: (SHOW_PRICES ? 'Proforma de materiales' : 'Lista de materiales') + ' — Fachada La Carreta', s: 1 }]];
     rows.push(['Frente ' + fm(P.FW) + ' m · Alto ' + fm(P.H) + ' m · Fondo ' + fm(P.D) + ' m · Tubo ' + Math.round(P.t * 1000) + '×' + Math.round(P.t * 1000) + ' mm']);
     rows.push([]);
+    if (!SHOW_PRICES) {
+      rows.push([{ v: 'Material', s: 1 }, { v: 'Cantidad', s: 1 }, { v: 'Unidad', s: 1 }, { v: 'Nota', s: 1 }]);
+      items.forEach(function (it) { rows.push([it.desc, it.qty, it.unit, it.note.replace(/<[^>]*>/g, '')]); });
+    } else {
     rows.push([{ v: 'Material', s: 1 }, { v: 'Cant.', s: 1 }, { v: 'Unidad', s: 1 }, { v: 'P. unit. ($)', s: 1 }, { v: 'Total ($)', s: 1 }, { v: 'Nota', s: 1 }]);
-    var r0 = rows.length + 1;
-    items.forEach(function (it, i) {
-      var inp = document.querySelector('#bom input[data-i="' + i + '"]'), p = num(inp ? inp.value : 0), rn = r0 + i;
-      rows.push([it.desc, it.qty, it.unit, p ? { v: p, s: M } : { v: '', s: M }, { f: 'B' + rn + '*D' + rn, s: M }, it.note.replace(/<[^>]*>/g, '')]);
-    });
-    var r1 = r0 + items.length - 1, rs = r1 + 1;
-    rows.push([{ v: 'Subtotal', s: 1 }, '', '', '', { f: 'SUM(E' + r0 + ':E' + r1 + ')', s: M }]);
-    rows.push([{ v: 'IVA ' + P.iva + ' %', s: 1 }, '', '', '', { f: 'E' + rs + '*' + (P.iva / 100), s: M }]);
-    rows.push([{ v: 'Total', s: 1 }, '', '', '', { f: 'E' + rs + '+E' + (rs + 1), s: M }]);
+      var r0 = rows.length + 1;
+      items.forEach(function (it, i) {
+        var inp = document.querySelector('#bom input[data-i="' + i + '"]'), p = num(inp ? inp.value : 0), rn = r0 + i;
+        rows.push([it.desc, it.qty, it.unit, p ? { v: p, s: M } : { v: '', s: M }, { f: 'B' + rn + '*D' + rn, s: M }, it.note.replace(/<[^>]*>/g, '')]);
+      });
+      var r1 = r0 + items.length - 1, rs = r1 + 1;
+      rows.push([{ v: 'Subtotal', s: 1 }, '', '', '', { f: 'SUM(E' + r0 + ':E' + r1 + ')', s: M }]);
+      rows.push([{ v: 'IVA ' + P.iva + ' %', s: 1 }, '', '', '', { f: 'E' + rs + '*' + (P.iva / 100), s: M }]);
+      rows.push([{ v: 'Total', s: 1 }, '', '', '', { f: 'E' + rs + '+E' + (rs + 1), s: M }]);
+  }
     var cuts = [[{ v: 'Plan de corte (barras de 6 m)', s: 1 }], [{ v: 'Barra', s: 1 }, { v: 'Cortes', s: 1 }, { v: 'Sobra (m)', s: 1 }]];
     info.summary.pk.bars.forEach(function (b, i) {
       var g = {}; b.items.forEach(function (q) { var k = Math.round(q.l * 1000) + '|' + q.p; g[k] = (g[k] || 0) + 1; });
@@ -1737,7 +1749,7 @@
       { name: 'xl/workbook.xml', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Proforma" sheetId="1" r:id="rId1"/><sheet name="Plan de corte" sheetId="2" r:id="rId2"/></sheets><calcPr fullCalcOnLoad="1"/></workbook>' },
       { name: 'xl/_rels/workbook.xml.rels', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
       { name: 'xl/styles.xml', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>' },
-      { name: 'xl/worksheets/sheet1.xml', data: sheetXml(rows, [62, 8, 9, 13, 13, 70]) },
+      { name: 'xl/worksheets/sheet1.xml', data: sheetXml(rows, SHOW_PRICES ? [62, 8, 9, 13, 13, 70] : [62, 10, 9, 70]) },
       { name: 'xl/worksheets/sheet2.xml', data: sheetXml(cuts, [8, 90, 11]) }
     ];
     return zipStore(files);
@@ -1753,7 +1765,7 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   }
-  document.getElementById('bXlsx').addEventListener('click', function () { download(buildXlsx(), 'proforma-fachada-la-carreta.xlsx'); });
+  document.getElementById('bXlsx').addEventListener('click', function () { download(buildXlsx(), 'lista-materiales-fachada-la-carreta.xlsx'); });
   if (window.claude && window.claude.use) document.getElementById('bPdf').style.display = 'none';  // imprimir no funciona dentro de claude.ai
   document.getElementById('bPdf').addEventListener('click', function () { window.print(); });
   var vid = document.getElementById('vid'), vidEl = document.getElementById('vidEl');

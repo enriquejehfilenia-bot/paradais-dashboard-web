@@ -1,12 +1,12 @@
 # Fachada La Carreta
 
 - `fachada-carreta-3d.html`: visor 3D + proforma en un solo archivo, funciona sin internet (se envía por WhatsApp).
-- `proforma-fachada-la-carreta.xlsx` / `.pdf`: proforma exportada (solo el tubo trae precio, $7,50 la barra).
+- `lista-materiales-fachada-la-carreta.xlsx` / `.pdf`: lista de cantidades de material, sin precios por ahora (en `fachada-carreta-3d.html`, `SHOW_PRICES = true` los vuelve a activar; el tubo es de $7,50 la barra).
 - Video del recorrido: en pausa hasta definir el proyecto (se regenera con `scripts/render-video.mjs`; el boton Video del visor esta oculto).
 - `scripts/`: `check.mjs` (revisión en celular y escritorio), `export-proforma.mjs`, `render-video.mjs`.
 - `BRIEF.md`: brief original.
 
-Dentro del visor, la proforma tiene botones **Excel (.xlsx)** y **PDF / Imprimir** que usan los precios que escribas.
+Dentro del visor, la lista de materiales tiene botones **Excel (.xlsx)** y **PDF / Imprimir**.
 
 ## Supuestos vigentes (verificar en obra)
 - Frente 4 m y fondo 4 m, cerrado por los 4 lados con reja de tubo (frente con la puerta corrediza: dos hojas que se esconden detras de los fijos y se juntan al centro; costados y fondo fijos).
