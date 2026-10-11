@@ -10,6 +10,6 @@ Dentro del visor, la lista de materiales tiene botones **Excel (.xlsx)** y **PDF
 
 ## Supuestos vigentes (verificar en obra)
 - Frente 8 m (3 pilares, 2 tramos de 4 m) y fondo 4 m, cerrado por los 4 lados con reja de tubo. Una puerta corrediza en cada tramo del frente (2 puertas, cada una de 2 hojas que se esconden detras de los fijos y se juntan al centro); costados y fondo fijos.
-- Los 4 m entre columnas se miden de centro a centro; columnas de 45 cm, por lo que cada reja mide 3,55 m entre columnas.
+- Los 4 m entre pilares se miden de centro a centro. Pilares del frente: madera de 45 cm (reja de 3,55 m). Pilares de los costados y del fondo: metal delgado de 12 cm; cada costado tiene 3 pilares (2 tramos).
 - Alto de la reja: 3 m.
 - Tubo 20 × 20 × 1,5 mm.
