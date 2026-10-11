@@ -81,6 +81,10 @@
   td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   td small { display: block; opacity: .65; font-size: 11px; margin-top: 2px; }
   td input { min-height: 36px; padding: 5px 4px; text-align: right; width: 76px; }
+  .calcbox { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; }
+  .calcbox label { font-size: 12px; opacity: .85; }
+  #bCalc { min-height: 40px; font-weight: 650; }
+  #bCalc.pending { background: var(--accent); border-color: var(--accent); color: #fff; }
   tr.total td { font-weight: 650; border-bottom: none; }
   .note { font-size: 12px; opacity: .8; line-height: 1.5; }
   #vid { position: fixed; inset: 0; background: rgba(10,8,6,.96); display: none; flex-direction: column; z-index: 20; }
@@ -99,7 +103,7 @@
   #photo a { color: #E39A4A; }
   @media print {
     html, body { height: auto; overflow: visible; background: #fff; color: #000; }
-    #stage, header, #panel, #hint, #photo, #vid, .sheethead button, #bXlsx, #bPdf { display: none !important; }
+    #stage, header, #panel, #hint, #photo, #vid, .sheethead button, #bXlsx, #bPdf, .calcbox { display: none !important; }
     #sheet { position: static; display: block !important; overflow: visible; padding: 0; background: #fff; }
     .sheethead { position: static; }
     .params { display: none; }
@@ -168,6 +172,7 @@
     <div><label for="pGap">Separación mínima entre tubos (cm)</label><input id="pGap" type="number" inputmode="decimal" step="0.5" min="5" value="12"></div>
     <div><label for="pT">Tubo cuadrado</label>
       <select id="pT"><option value="20|1.5" selected>20 × 20 × 1,5 mm</option><option value="25|1.5">25 × 25 × 1,5 mm</option><option value="30|2">30 × 30 × 2 mm</option><option value="40|2">40 × 40 × 2 mm</option><option value="50|2">50 × 50 × 2 mm</option></select></div>
+    <div class="calcbox"><label for="bCalc">Después de poner las medidas</label><button id="bCalc" type="button">Calcular</button></div>
     <div id="ivaBox" hidden><label for="pIva">IVA (%)</label><input id="pIva" type="number" inputmode="decimal" step="1" min="0" value="15"></div>
   </div>
   <p class="note" id="summary"></p>
@@ -1816,14 +1821,30 @@
   var sheet = document.getElementById('sheet');
   document.getElementById('bBom').addEventListener('click', function () { sheet.classList.add('show'); sheet.scrollTop = 0; });
   document.getElementById('bCloseSheet').addEventListener('click', function () { sheet.classList.remove('show'); });
-  function bindParam(id, fn) { document.getElementById(id).addEventListener('change', function (e) { fn(e.target.value); rebuild(); }); }
-  bindParam('pD', function (v) { P.D = Math.min(60, Math.max(2, num(v) || 4)); });
-  bindParam('pFW', function (v) { P.FW = Math.min(60, Math.max(2, num(v) || 8)); });
-  bindParam('pH', function (v) { P.H = Math.min(8, Math.max(2, num(v) || 3)); });
-  bindParam('pBay', function (v) { P.bay = Math.min(10, Math.max(2, num(v) || 4)); });
-  bindParam('pDoors', function (v) { P.doors = v; });
-  bindParam('pGap', function (v) { P.gap = Math.min(0.4, Math.max(0.05, (num(v) || 12) / 100)); });
-  bindParam('pT', function (v) { var a = v.split('|'); P.t = num(a[0]) / 1000; E = num(a[1]) / 1000; });
+  // Las medidas se aplican al pulsar "Calcular" (o Enter en un campo); mientras tanto el botón avisa que hay cambios
+  var bCalc = document.getElementById('bCalc');
+  function readParams() {
+    P.D = Math.min(60, Math.max(2, num(document.getElementById('pD').value) || 4));
+    P.FW = Math.min(60, Math.max(2, num(document.getElementById('pFW').value) || 8));
+    P.H = Math.min(8, Math.max(2, num(document.getElementById('pH').value) || 3));
+    P.bay = Math.min(10, Math.max(2, num(document.getElementById('pBay').value) || 4));
+    P.doors = document.getElementById('pDoors').value || P.doors;
+    P.gap = Math.min(0.4, Math.max(0.05, (num(document.getElementById('pGap').value) || 12) / 100));
+    var a = document.getElementById('pT').value.split('|'); P.t = num(a[0]) / 1000; E = num(a[1]) / 1000;
+  }
+  function calcular() {
+    readParams(); rebuild();
+    ['pD', 'pFW', 'pH', 'pBay', 'pGap'].forEach(function (id) { var el = document.getElementById(id), v = { pD: P.D, pFW: P.FW, pH: P.H, pBay: P.bay, pGap: P.gap * 100 }[id]; el.value = String(Math.round(v * 100) / 100); });
+    bCalc.classList.remove('pending'); bCalc.textContent = 'Calculado ✓';
+    setTimeout(function () { bCalc.textContent = 'Calcular'; }, 1600);
+  }
+  bCalc.addEventListener('click', calcular);
+  ['pD', 'pFW', 'pH', 'pBay', 'pDoors', 'pGap', 'pT'].forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener('input', function () { bCalc.classList.add('pending'); bCalc.textContent = 'Calcular'; });
+    el.addEventListener('change', function () { bCalc.classList.add('pending'); });
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); calcular(); } });
+  });
   document.getElementById('pIva').addEventListener('change', function (e) { P.iva = Math.max(0, num(e.target.value)); totals(); });
 
   // Encuadre: el modelo se centra en el espacio libre entre el título y el panel
