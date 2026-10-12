@@ -40,6 +40,11 @@ Carpeta de trabajo: `fachada-la-carreta/`. Un solo archivo HTML sin servidor, co
 5. Archivo para compartir: copia del mismo HTML, funciona sin internet.
 6. Commit y push a la rama del PR, y regenerar Excel/PDF si cambian las cantidades.
 
+## Marco app (la app instalable)
+- Carpeta `marco-app/`: PWA con proyectos guardados, modo cliente e instalación sin internet. Se **genera** desde el visor: tras cambiar `fachada-la-carreta/fachada-carreta-3d.html` o `marco-app/src/`, correr `python3 marco-app/scripts/build-marco.py` y la prueba `node marco-app/scripts/probar.mjs <url> <carpeta>` contra `python3 -m http.server`.
+- Variante para claude.ai: `python3 marco-app/scripts/build-marco.py --artifact <salida.html>` (sin instalación; guardar en localStorage y descargar por la capacidad `downloads`).
+- El visor expone a la app `window.__api` (`getParams`, `setParams`, `summary`, `onCalc`, `download`). No renombrar sin actualizar `marco-app/src/marco.js`.
+
 ## Trampas ya encontradas
 - `TH` y `COL` deben estar en el ámbito de todo el script; `computeBom` los usa fuera de `rebuild`.
 - No uses `pkill -f render-video` con ese texto dentro del mismo comando: se mata a sí mismo.

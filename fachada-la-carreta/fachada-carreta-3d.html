@@ -1636,6 +1636,7 @@
     TAGS.forEach(function (r) { parts[r[0]] = 0; cnt[r[0]] = 0; });
     all.forEach(function (it) { parts[it.p] += it.l; cnt[it.p] += 1; });
     var tc = info.tubeCnt, tubesFrente = (tc['Fijo'] || 0) + (tc['Puerta'] || 0), tubesTotal = tubesFrente + (tc['Der'] || 0) + (tc['Izq'] || 0) + (tc['Fondo'] || 0);
+    info.tubesTotal = tubesTotal;
     info.tubeLine = 'Tubos verticales: frente ' + tubesFrente + ', costado derecho ' + (tc['Der'] || 0) + ', costado izquierdo ' + (tc['Izq'] || 0) + ', pared trasera ' + (tc['Fondo'] || 0) + ' (total ' + tubesTotal + ')';
     var ph = '<tr><th>Parte</th><th class="n">Tubos verticales</th><th class="n">Piezas</th><th class="n">Metros</th><th class="n">≈ Barras</th></tr>';
     TAGS.forEach(function (r) {
@@ -1823,7 +1824,7 @@
   document.getElementById('bBom').addEventListener('click', function () { sheet.classList.add('show'); sheet.scrollTop = 0; });
   document.getElementById('bCloseSheet').addEventListener('click', function () { sheet.classList.remove('show'); });
   // Las medidas se aplican al pulsar "Calcular" (o Enter en un campo); mientras tanto el botón avisa que hay cambios
-  var bCalc = document.getElementById('bCalc');
+  var bCalc = document.getElementById('bCalc'), calcHooks = [];
   function readParams() {
     P.D = Math.min(60, Math.max(2, num(document.getElementById('pD').value) || 8));
     P.FW = Math.min(60, Math.max(2, num(document.getElementById('pFW').value) || 8));
@@ -1834,9 +1835,10 @@
     var a = document.getElementById('pT').value.split('|'); P.t = num(a[0]) / 1000; E = num(a[1]) / 1000;
   }
   function calcular() {
-    readParams(); rebuild();
+    readParams(); rebuild(); setView();   // al cambiar medidas, la cámara se vuelve a encuadrar
     ['pD', 'pFW', 'pH', 'pBay', 'pGap'].forEach(function (id) { var el = document.getElementById(id), v = { pD: P.D, pFW: P.FW, pH: P.H, pBay: P.bay, pGap: P.gap * 100 }[id]; el.value = String(Math.round(v * 100) / 100); });
     bCalc.classList.remove('pending'); bCalc.textContent = 'Calculado ✓';
+    calcHooks.forEach(function (f) { try { f(); } catch (e) {} });
     setTimeout(function () { bCalc.textContent = 'Calcular'; }, 1600);
   }
   bCalc.addEventListener('click', calcular);
@@ -1867,7 +1869,7 @@
     var asp = camera.aspect, v = camera.fov * Math.PI / 360, D = P.D, FW = P.FW, Hh = P.H, f = freeArea().frac, pos, tgt;
     if (viewIdx === 0) {
       tgt = V(0, Hh * 0.42, -D * 0.2);
-      var d = Math.max((Hh * 0.8 + 1.2) / f / Math.tan(v), (FW * 0.5 + 1.0) / (asp * Math.tan(v))) + Math.max(D, FW) * 0.22;
+      var d = Math.max((Hh * 0.8 + 1.2) / f / Math.tan(v), (FW * 0.5 + 2.4) / (asp * Math.tan(v))) + Math.max(D, FW) * 0.22;
       pos = tgt.clone().add(V(0.62, 0.3, 1.0).normalize().multiplyScalar(d));
     } else if (viewIdx === 1) {
       tgt = V(0, Hh * 0.55, 0);
@@ -1910,7 +1912,20 @@
     setDims: function (on) { vis.dims = on; dimsG.visible = on; },
     hideUI: function (on) { ['header', '#panel', '#hint'].forEach(function (s) { document.querySelector(s).style.display = on ? 'none' : ''; }); },
     shot: function () { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/jpeg', 0.9); },
-    setSize: function (w, hh) { renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix(); }
+    setSize: function (w, hh) { renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix(); },
+    // --- para Marco app: leer/aplicar medidas, resumen, descargas y aviso al calcular ---
+    getParams: function () { return { FW: P.FW, D: P.D, H: P.H, bay: P.bay, doors: P.doors, gap: Math.round(P.gap * 10000) / 100, tube: Math.round(P.t * 1000) + '|' + String(+(E * 1000).toFixed(2)) }; },
+    setParams: function (o) {
+      var set = function (id, v) { if (v !== undefined && v !== null) document.getElementById(id).value = String(v); };
+      set('pFW', o.FW); set('pD', o.D); set('pH', o.H); set('pBay', o.bay); set('pGap', o.gap); set('pT', o.tube);
+      syncDoorOptions(Math.max(1, Math.round((num(document.getElementById('pFW').value) || 8) / (num(document.getElementById('pBay').value) || 4))));
+      if (o.doors) document.getElementById('pDoors').value = o.doors;
+      calcular();
+    },
+    summary: function () { return { bars: info.summary.pk.n, tubes: info.tubesTotal, w: P.FW, d: P.D, h: P.H }; },
+    onCalc: function (fn) { calcHooks.push(fn); },
+    download: function (blob, name) { download(blob, name); },
+    items: function () { return items.map(function (it) { return { desc: it.desc, qty: it.qty, unit: it.unit }; }); }
   };
 
   var last = performance.now();
