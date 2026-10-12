@@ -22,3 +22,12 @@ python3 -m http.server 8765 &            # y en otra terminal:
 node scripts/probar.mjs http://127.0.0.1:8765/ carpeta_capturas
 ```
 `index.html` y `marco-app-compartir.html` son generados: se cambia el visor o `src/` y se vuelve a construir.
+
+## Publicar en Vercel (proyecto aparte del dashboard)
+1. Vercel > Add New > Project > importar `paradais-dashboard-web`.
+2. **Root Directory:** `marco-app`. **Framework Preset:** Other. Sin comando de build ni carpeta de salida (es estático).
+3. Deploy. Da una dirección tipo `marco-app.vercel.app` (se puede cambiar el nombre del proyecto).
+4. Cada cambio en `master` actualiza la app. Las ramas generan una dirección de prueba.
+5. En el proyecto del **dashboard**, Settings > Git > Ignored Build Step, para que no se reconstruya cuando solo cambian `marco-app` o `fachada-la-carreta`.
+6. Si el cliente va a abrir la dirección de prueba (rama), desactivar "Vercel Authentication" en Settings > Deployment Protection. La de producción es pública por defecto.
+Nota: no meter la app dentro de `public/` del dashboard: ya tiene su propio `sw.js` e íconos con los mismos nombres, y el middleware pide sesión.
